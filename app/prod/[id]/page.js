@@ -11,14 +11,14 @@ export default function Page() {
 
   return (
     <>
-      <div style={{ display: "flex" }}>
-        <div style={{ maxWidth: "50vw", overflow: "hidden" }}>
+      <div style={{ display: "flex", flexWrap: "wrap" }}>
+        <div style={{ minWidth: 500, flex: 1, overflow: "hidden" }}>
           {item.src && (
             <img style={{ width: "100%" }} src={item.src} alt={item.name} />
           )}
         </div>
-        <div>
-          <div style={{ minWidth: "50vw", padding: "40px 100px" }}>
+        <div style={{ flex: 1, minWidth: 500 }}>
+          <div style={{ padding: "40px 100px" }}>
             <h1>{item.name}</h1>
             <div>$2.100.000,00 COP </div>
             <div>
