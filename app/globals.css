@@ -42,6 +42,92 @@ a {
   text-decoration: none;
 }
 
+.image-container {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(550px, 1fr));
+  width: 100vw;
+}
+
+.image-container img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.carousel-img {
+  /* opacity: 0.6; */
+}
+
+.carousel-img-wrapper {
+  overflow: hidden;
+  max-height: 300px;
+  min-height: 300px;
+}
+
+.carousel-img-wrapper img:hover {
+  transform: scale(1.62);
+}
+
+.detalles {
+  border-top: 1px solid silver;
+  margin-top: 20px;
+}
+
+.detalles div {
+  padding: 20px;
+  border-bottom: 1px solid silver;
+}
+
+.detalles div:hover {
+  background: silver;
+  color: black;
+}
+
+.scroll {
+  overflow-x: auto;
+  scrollbar-width: thin;
+  /* Firefox */
+  scrollbar-color: rgba(100, 100, 100, 0.3) transparent;
+}
+
+.scroll::-webkit-scrollbar {
+  height: 6px;
+  /* thin horizontal bar */
+}
+
+.scroll::-webkit-scrollbar-track {
+  background: transparent;
+  /* invisible track */
+}
+
+.scroll::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 999px;
+}
+
+.scroll::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.5);
+}
+
+.bottomBS h4 {
+  margin-bottom: 20px;
+}
+
+.bottomBS div {
+  margin-bottom: 10px;
+}
+
+button {
+  appearance: none;
+  border: none;
+  background: none;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+
 @media (prefers-color-scheme: dark) {
   html {
     color-scheme: dark;
