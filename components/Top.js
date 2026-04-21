@@ -20,6 +20,7 @@ export default function Top() {
           top: 0,
           width: "100%",
           background: "rgba(127,127,127,0.62)",
+          zIndex: 100,
         }}
       >
         <button onClick={() => setIsMenuOpen(!isMenuOpen)}>Menu</button>
