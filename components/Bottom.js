@@ -7,7 +7,7 @@ export default function Bottom() {
       </div>
       <div
         className="bottomBS"
-        style={{ display: "flex", gap: 60, marginTop: 100, padding: 20 }}
+        style={{ display: "flex", gap: 60, marginTop: 100, padding: 20, flexWrap: "wrap", }}
       >
         <div>
           <h4>Relaciones con clientes</h4> <div>Contacto</div>{" "}
