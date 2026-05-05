@@ -14,6 +14,7 @@ export default function Top() {
 
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [activeItem, setActiveItem] = useState(null);
+  const [mobileActiveItem, setMobileActiveItem] = useState(null);
   const [topbarHeight, setTopbarHeight] = useState(0);
   const [canInlineNav, setCanInlineNav] = useState(true);
 
@@ -44,6 +45,7 @@ export default function Top() {
   useEffect(() => {
     if (canInlineNav) {
       setIsMenuOpen(false);
+      setMobileActiveItem(null);
     }
     setActiveItem(null);
   }, [canInlineNav]);
@@ -52,6 +54,7 @@ export default function Top() {
     const handleScroll = () => {
       if (!canInlineNav && window.scrollY > 80) {
         setIsMenuOpen(false);
+        setMobileActiveItem(null);
       }
       if (canInlineNav && window.scrollY > 80) {
         setActiveItem(null);
@@ -61,7 +64,6 @@ export default function Top() {
     return () => window.removeEventListener("scroll", handleScroll);
   }, [canInlineNav]);
 
-  // Close dropdown when clicking outside
   useEffect(() => {
     if (!activeItem) return;
     const handleClickOutside = (e) => {
@@ -78,6 +80,8 @@ export default function Top() {
   };
 
   const isDropdownOpen = canInlineNav && activeItem !== null;
+  const isMobileSubOpen =
+    !canInlineNav && isMenuOpen && mobileActiveItem !== null;
 
   return (
     <>
@@ -127,7 +131,10 @@ export default function Top() {
               <button
                 className="topLink"
                 type="button"
-                onClick={() => setIsMenuOpen((v) => !v)}
+                onClick={() => {
+                  setIsMenuOpen((v) => !v);
+                  setMobileActiveItem(null);
+                }}
               >
                 Menu
               </button>
@@ -256,17 +263,87 @@ export default function Top() {
             boxShadow: "0 14px 40px rgba(0,0,0,0.45)",
           }}
         >
-          <div style={{ display: "flex", flexDirection: "column" }}>
-            {leftItems.map((item) => (
+          {/* Sliding track — two panels side by side */}
+          <div
+            style={{
+              display: "flex",
+              width: "200%",
+              transform: isMobileSubOpen
+                ? "translateX(-50%)"
+                : "translateX(0%)",
+              transition: "transform 0.3s cubic-bezier(0.4,0,0.2,1)",
+            }}
+          >
+            {/* Panel 1 — main list */}
+            <div style={{ width: "50%", flexShrink: 0 }}>
+              {leftItems.map((item) => (
+                <button
+                  key={item}
+                  type="button"
+                  className="menuItem menuItemMobile"
+                  onClick={() => setMobileActiveItem(item)}
+                >
+                  <span>{item}</span>
+                  <svg
+                    width="16"
+                    height="16"
+                    viewBox="0 0 16 16"
+                    fill="none"
+                    style={{ opacity: 0.5 }}
+                  >
+                    <path
+                      d="M6 3l5 5-5 5"
+                      stroke="currentColor"
+                      strokeWidth="1.6"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                </button>
+              ))}
+            </div>
+
+            {/* Panel 2 — sub-menu */}
+            <div style={{ width: "50%", flexShrink: 0 }}>
+              {/* Back button */}
               <button
-                key={item}
                 type="button"
-                className="menuItem menuItemMobile"
-                onClick={() => setIsMenuOpen(false)}
+                className="menuItem menuItemMobile mobileBackBtn"
+                onClick={() => setMobileActiveItem(null)}
               >
-                {item}
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 16 16"
+                  fill="none"
+                  style={{ opacity: 0.6 }}
+                >
+                  <path
+                    d="M10 3L5 8l5 5"
+                    stroke="currentColor"
+                    strokeWidth="1.6"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+                <span style={{ opacity: 0.6, fontSize: 13 }}>Volver</span>
               </button>
-            ))}
+
+              {/* Sub-menu title */}
+              <div style={{ padding: "24px 20px 16px" }}>
+                <h4
+                  style={{
+                    margin: 0,
+                    fontWeight: 600,
+                    fontSize: 20,
+                    letterSpacing: "0.08em",
+                    color: "#fff",
+                  }}
+                >
+                  {mobileActiveItem}
+                </h4>
+              </div>
+            </div>
           </div>
         </div>
       )}
@@ -309,6 +386,10 @@ export default function Top() {
           letter-spacing: 0.02em;
           cursor: pointer;
           text-align: left;
+          width: 100%;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
           transition:
             background-color 180ms ease,
             transform 180ms ease;
@@ -316,12 +397,17 @@ export default function Top() {
 
         .menuItem:hover {
           background: rgba(255, 255, 255, 0.05);
-          transform: translateX(4px);
         }
 
         .menuItemMobile {
           padding: 20px;
           border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .mobileBackBtn {
+          justify-content: flex-start;
+          gap: 8px;
+          font-size: 14px;
         }
       `}</style>
     </>
