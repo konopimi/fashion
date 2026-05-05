@@ -13,15 +13,17 @@ export default function Top() {
   const measureRef = useRef(null);
 
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [activeItem, setActiveItem] = useState(null);
   const [topbarHeight, setTopbarHeight] = useState(0);
   const [canInlineNav, setCanInlineNav] = useState(true);
 
   useEffect(() => {
     const updateLayout = () => {
       if (topbarRef.current) {
-        setTopbarHeight(topbarRef.current.offsetHeight);
+        const h = topbarRef.current.offsetHeight;
+        setTopbarHeight(h);
+        document.documentElement.style.setProperty("--topbar-height", `${h}px`);
       }
-
       if (measureRef.current && topbarRef.current) {
         const available = topbarRef.current.clientWidth;
         const needed = measureRef.current.scrollWidth + 24;
@@ -30,12 +32,9 @@ export default function Top() {
     };
 
     updateLayout();
-
     const ro = new ResizeObserver(updateLayout);
     if (topbarRef.current) ro.observe(topbarRef.current);
-
     window.addEventListener("resize", updateLayout);
-
     return () => {
       ro.disconnect();
       window.removeEventListener("resize", updateLayout);
@@ -46,6 +45,7 @@ export default function Top() {
     if (canInlineNav) {
       setIsMenuOpen(false);
     }
+    setActiveItem(null);
   }, [canInlineNav]);
 
   useEffect(() => {
@@ -53,46 +53,32 @@ export default function Top() {
       if (!canInlineNav && window.scrollY > 80) {
         setIsMenuOpen(false);
       }
+      if (canInlineNav && window.scrollY > 80) {
+        setActiveItem(null);
+      }
     };
-
     window.addEventListener("scroll", handleScroll, { passive: true });
-
-    return () => {
-      window.removeEventListener("scroll", handleScroll);
-    };
+    return () => window.removeEventListener("scroll", handleScroll);
   }, [canInlineNav]);
 
+  // Close dropdown when clicking outside
   useEffect(() => {
-    const updateLayout = () => {
-      if (topbarRef.current) {
-        const h = topbarRef.current.offsetHeight;
-
-        setTopbarHeight(h);
-
-        document.documentElement.style.setProperty("--topbar-height", `${h}px`);
-      }
-
-      if (measureRef.current && topbarRef.current) {
-        const available = topbarRef.current.clientWidth;
-        const needed = measureRef.current.scrollWidth + 24;
-
-        setCanInlineNav(available >= needed);
+    if (!activeItem) return;
+    const handleClickOutside = (e) => {
+      if (topbarRef.current && !topbarRef.current.contains(e.target)) {
+        setActiveItem(null);
       }
     };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [activeItem]);
 
-    updateLayout();
+  const handleLeftItemClick = (item) => {
+    setActiveItem((prev) => (prev === item ? null : item));
+  };
 
-    const ro = new ResizeObserver(updateLayout);
+  const isDropdownOpen = canInlineNav && activeItem !== null;
 
-    if (topbarRef.current) ro.observe(topbarRef.current);
-
-    window.addEventListener("resize", updateLayout);
-
-    return () => {
-      ro.disconnect();
-      window.removeEventListener("resize", updateLayout);
-    };
-  }, []);
   return (
     <>
       <div
@@ -128,7 +114,12 @@ export default function Top() {
           >
             {canInlineNav ? (
               leftItems.map((item) => (
-                <button key={item} className="topLink" type="button">
+                <button
+                  key={item}
+                  className={`topLink${activeItem === item ? " topLinkActive" : ""}`}
+                  type="button"
+                  onClick={() => handleLeftItemClick(item)}
+                >
                   {item}
                 </button>
               ))
@@ -152,7 +143,10 @@ export default function Top() {
               whiteSpace: "nowrap",
               textShadow: "0 1px 4px rgba(0,0,0,0.45)",
             }}
-            onClick={() => router.push("/")}
+            onClick={() => {
+              router.push("/");
+              setActiveItem(null);
+            }}
           >
             ASHERALEPH
           </b>
@@ -197,12 +191,7 @@ export default function Top() {
               {item}
             </span>
           ))}
-          <span
-            style={{
-              letterSpacing: "0.18em",
-              fontWeight: 700,
-            }}
-          >
+          <span style={{ letterSpacing: "0.18em", fontWeight: 700 }}>
             ASHERALEPH
           </span>
           {rightItems.map((item) => (
@@ -213,6 +202,41 @@ export default function Top() {
         </div>
       </div>
 
+      {/* Desktop dropdown */}
+      <div
+        style={{
+          position: "fixed",
+          top: Math.max(0, topbarHeight - 1),
+          left: 0,
+          right: 0,
+          zIndex: 1500,
+          background: "rgba(0,0,0,0.94)",
+          backdropFilter: "blur(18px)",
+          color: "#fff",
+          overflow: "hidden",
+          opacity: isDropdownOpen ? 1 : 0,
+          transform: isDropdownOpen ? "translateY(0px)" : "translateY(-12px)",
+          pointerEvents: isDropdownOpen ? "auto" : "none",
+          transition: "opacity 0.28s ease, transform 0.28s ease",
+          boxShadow: "0 14px 40px rgba(0,0,0,0.45)",
+        }}
+      >
+        <div style={{ padding: "32px 40px 28px" }}>
+          <h4
+            style={{
+              margin: 0,
+              fontWeight: 600,
+              fontSize: 20,
+              letterSpacing: "0.08em",
+              color: "#fff",
+            }}
+          >
+            {activeItem}
+          </h4>
+        </div>
+      </div>
+
+      {/* Mobile dropdown */}
       {!canInlineNav && (
         <div
           style={{
@@ -266,6 +290,13 @@ export default function Top() {
         .topLink:hover {
           opacity: 0.72;
           transform: translateY(-1px);
+        }
+
+        .topLinkActive {
+          opacity: 0.72;
+          transform: translateY(-1px);
+          text-decoration: underline;
+          text-underline-offset: 4px;
         }
 
         .menuItem {
