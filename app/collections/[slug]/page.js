@@ -66,7 +66,11 @@ export default function CollectionPage() {
             shuffledImages[i % shuffledImages.length] ?? shuffledImages[0];
 
           return (
-            <Link key={p.id} href={`/prod/${p.id}`} className="mosaicCard">
+            <Link
+              key={p.id}
+              href={`/prod/${randomItem.id}`}
+              className="mosaicCard"
+            >
               <div className="mosaicImgWrapper">
                 {randomItem?.src ? (
                   <img
