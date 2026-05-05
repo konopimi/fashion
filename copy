@@ -1,12 +1,17 @@
 #!/bin/bash
 # List of files with their relative paths
 FILES=(
- "app/page.js"
+ # "app/page.js"
  "app/layout.js"
- "app/prod/[id]/page.js"
- "components/Scroll.js"
+ # "app/prod/[id]/page.js"
+ "app/collections/[slug]/page.js"
+ # "components/Scroll.js"
  "components/Top.js"
- "components/Bottom.js"
+ # "components/Bottom.js"
+ "app/globals.css"
+ "app/page.module.css"
+ # "app/"
+ # "components/"
   )
 echo "Running: mcp"
 printf "%s\n" "${FILES[@]}"

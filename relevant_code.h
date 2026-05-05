@@ -1,62 +1,3 @@
-//===== app/page.js =====
-"use client";
-import Image from "next/image";
-import styles from "./page.module.css";
-import { useState, useEffect, useRef } from "react";
-import Scroll from "../components/Scroll";
-import { carouselItems } from "../vStore/inventory";
-export default function Home() {
-  return (
-    <div className={styles.page}>
-      <main className={styles.main}>
-        <div className="image-container">
-          <img src="https://co.silviatcherassi.com/cdn/shop/files/1402-3_1.jpg?v=1775769358&width=1500" />
-          <img src="https://co.silviatcherassi.com/cdn/shop/files/2_f3b3831b-f41c-4f32-8a48-d5b3c045bac4.jpg?v=1775754993&width=1500" />
-          <img src="https://co.silviatcherassi.com/cdn/shop/files/SPRING_2026_-_HERO_IMAGES_13_b2600db3-62f4-4632-b8e2-b433de7b77ee.jpg?v=1775489708&width=1500" />
-          <img src="https://co.silviatcherassi.com/cdn/shop/files/SPRING_2026_-_HERO_IMAGES_19_e3e6e248-ee80-432f-a4be-114ceebf414b.jpg?v=1775489710&width=832" />
-        </div>
-        {/* <Image */}
-        {/*   className={styles.logo} */}
-        {/*   src="/next.svg" */}
-        {/*   alt="Next.js logo" */}
-        {/*   width={100} */}
-        {/*   height={20} */}
-        {/*   priority */}
-        {/* /> */}
-        <Scroll carouselItems={carouselItems} />
-        <div className="image-container">
-          <img src="https://co.silviatcherassi.com/cdn/shop/files/ST_d8f2e597-969e-4663-a915-a59d6f3d51c1.png?v=1759248174&width=1500" />
-          <img src="https://co.silviatcherassi.com/cdn/shop/files/Sofia_Tennis_Bag.jpg?v=1775766367&width=1500" />
-        </div>
-        <div className={styles.ctas}>
-          <a
-            className={styles.primary}
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className={styles.logo}
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className={styles.secondary}
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
-    </div>
-  );
-}
 //===== app/layout.js =====
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
@@ -77,230 +18,634 @@ export const metadata = {
 export default function RootLayout({ children }) {
   return (
     <html lang="en" className={`${geistSans.variable} ${geistMono.variable}`}>
-      <Top />
-      <body>{children}</body>
-      <Bottom />
+      <body>
+        <Top />
+        {children}
+        <Bottom />
+      </body>
     </html>
   );
 }
-//===== app/prod/[id]/page.js =====
+//===== app/collections/[slug]/page.js =====
 "use client";
 import { useParams } from "next/navigation";
-import Scroll from "../../../components/Scroll";
-import { carouselItems, getItemById } from "../../../vStore/inventory";
-export default function Page() {
-  const params = useParams();
-  const id = Array.isArray(params.id) ? params.id[0] : params.id;
-  const item = getItemById(id);
+import Link from "next/link";
+const mockProducts = [
+  { id: 1, name: "Vestido Alma", price: "$2.100.000" },
+  { id: 2, name: "Blusa Cielo", price: "$980.000" },
+  { id: 3, name: "Falda Luna", price: "$1.200.000" },
+  { id: 4, name: "Vestido Sol", price: "$2.400.000" },
+  { id: 5, name: "Top Brisa", price: "$750.000" },
+  { id: 6, name: "Pantalón Niebla", price: "$1.100.000" },
+  { id: 7, name: "Vestido Mar", price: "$1.900.000" },
+  { id: 8, name: "Conjunto Río", price: "$2.800.000" },
+];
+export default function CollectionPage() {
+  const { slug } = useParams();
+  const title = slug
+    .split("-")
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(" ");
   return (
     <>
-      <div style={{ display: "flex" }}>
-        <div style={{ maxWidth: "50vw", overflow: "hidden" }}>
-          {item.src && (
-            <img style={{ width: "100%" }} src={item.src} alt={item.name} />
-          )}
-        </div>
-        <div>
-          <div style={{ minWidth: "50vw", padding: "40px 100px" }}>
-            <h1>{item.name}</h1>
-            <div>$2.100.000,00 COP </div>
-            <div>
-              {`Seleccionar Talla : XS Guía de
-            Tallas`}
+      <h4
+        style={{
+          position: "sticky",
+          top: 100,
+          zIndex: 10,
+          textAlign: "center",
+          textTransform: "uppercase",
+          fontWeight: 400,
+          background: "var(--background)",
+          marginBottom: 2,
+        }}
+      >
+        {title}
+      </h4>
+      <div className="mosaicGrid">
+        {mockProducts.map((p) => (
+          <Link key={p.id} href={`/prod/${p.id}`} className="mosaicCard">
+            <div className="mosaicImg" />
+            <div className="mosaicInfo">
+              <span className="mosaicName">{p.name}</span>
+              <span className="mosaicPrice">{p.price} COP</span>
             </div>
-            <button
-              style={{
-                padding: 20,
-                width: "100%",
-                background: "silver",
-                marginTop: 60,
-                marginBottom: 60,
-              }}
-            >
-              Agregar al Carrito
-            </button>
-            <div className="detalles">
-              <div>DETALLES</div>
-              <div>ENVIOS Y DEVOLUCIONES</div>
-            </div>
-          </div>
-        </div>
-      </div>
-      <div style={{ padding: 40 }}>You may also like</div>
-      <Scroll carouselItems={carouselItems} />
-    </>
-  );
-}
-//===== components/Scroll.js =====
-"use client";
-import { useEffect, useRef } from "react";
-import { useRouter } from "next/navigation";
-export default function Scroll({ carouselItems }) {
-  const scrollRef = useRef(null);
-  const router = useRouter();
-  const dragRef = useRef({
-    isDown: false,
-    moved: false,
-    startX: 0,
-    scrollLeft: 0,
-    pointerId: null,
-    target: null,
-  });
-  useEffect(() => {
-    const el = scrollRef.current;
-    if (!el) return;
-    const endDrag = () => {
-      const { pointerId, moved, target } = dragRef.current;
-      dragRef.current.isDown = false;
-      if (pointerId !== null && el.hasPointerCapture?.(pointerId)) {
-        el.releasePointerCapture(pointerId);
-      }
-      dragRef.current.pointerId = null;
-      if (!moved && target) {
-        const itemEl = target.closest("[data-item-id]");
-        if (itemEl) {
-          router.push(`/prod/${itemEl.dataset.itemId}`);
-        }
-      }
-      dragRef.current.moved = false;
-      dragRef.current.target = null;
-    };
-    const onPointerDown = (e) => {
-      dragRef.current.isDown = true;
-      dragRef.current.moved = false;
-      dragRef.current.startX = e.clientX;
-      dragRef.current.scrollLeft = el.scrollLeft;
-      dragRef.current.pointerId = e.pointerId;
-      dragRef.current.target = e.target;
-      el.setPointerCapture(e.pointerId);
-    };
-    const onPointerMove = (e) => {
-      if (!dragRef.current.isDown) return;
-      const dx = e.clientX - dragRef.current.startX;
-      if (Math.abs(dx) > 5) dragRef.current.moved = true;
-      el.scrollLeft = dragRef.current.scrollLeft - dx;
-    };
-    el.addEventListener("pointerdown", onPointerDown);
-    el.addEventListener("pointermove", onPointerMove);
-    el.addEventListener("pointerup", endDrag);
-    el.addEventListener("pointercancel", endDrag);
-    el.addEventListener("lostpointercapture", endDrag);
-    return () => {
-      el.removeEventListener("pointerdown", onPointerDown);
-      el.removeEventListener("pointermove", onPointerMove);
-      el.removeEventListener("pointerup", endDrag);
-      el.removeEventListener("pointercancel", endDrag);
-      el.removeEventListener("lostpointercapture", endDrag);
-    };
-  }, []);
-  return (
-    <div
-      ref={scrollRef}
-      style={{
-        overflowX: "scroll",
-        maxWidth: "100%",
-        cursor: "grab",
-        userSelect: "none",
-        touchAction: "pan-y",
-      }}
-    >
-      <div style={{ display: "flex" }}>
-        {carouselItems.map((item) => (
-          <div
-            key={item.id}
-            data-item-id={item.id}
-            style={{ overflow: "hidden", minWidth: "300px", cursor: "pointer" }}
-          >
-            <div className="carousel-img-wrapper">
-              <img
-                className="carousel-img"
-                style={{
-                  maxHeight: "300px",
-                  minHeight: "300px",
-                  pointerEvents: "none",
-                }}
-                src={item.src}
-                alt={item.name}
-              />
-            </div>
-            <div style={{ padding: 20, pointerEvents: "none" }}>
-              {item.name}
-            </div>
-          </div>
+          </Link>
         ))}
       </div>
-    </div>
+      <style jsx global>{`
+        .mosaicGrid {
+          display: grid;
+          grid-template-columns: repeat(3, 1fr);
+          gap: 2px;
+        }
+        @media (max-width: 900px) {
+          .mosaicGrid {
+            grid-template-columns: repeat(2, 1fr);
+          }
+        }
+        @media (max-width: 500px) {
+          .mosaicGrid {
+            grid-template-columns: 1fr;
+          }
+        }
+        .mosaicCard {
+          display: flex;
+          flex-direction: column;
+          text-decoration: none;
+          color: inherit;
+          cursor: pointer;
+        }
+        .mosaicImg {
+          width: 100%;
+          aspect-ratio: 3 / 4;
+          background: #e8e4df;
+          overflow: hidden;
+          transition: opacity 300ms ease;
+        }
+        .mosaicCard:hover .mosaicImg {
+          opacity: 0.85;
+        }
+        .mosaicInfo {
+          display: flex;
+          flex-direction: column;
+          gap: 4px;
+          padding: 12px 4px;
+        }
+        .mosaicName {
+          font-size: 13px;
+          letter-spacing: 0.06em;
+          text-transform: uppercase;
+        }
+        .mosaicPrice {
+          font-size: 12px;
+          color: #666;
+        }
+      `}</style>
+    </>
   );
 }
 //===== components/Top.js =====
 "use client";
-import { useState, useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-const menuItems = ["Comprar", "Colecciones", "Novias", "Más", "Boutiques"];
+const leftItems = ["Comprar", "Colecciones", "Novias", "Más"];
+const rightItems = ["Buscar", "Carrito"];
 export default function Top() {
+  const router = useRouter();
+  const topbarRef = useRef(null);
+  const measureRef = useRef(null);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [isCartOpen, setIsCartOpen] = useState(false);
+  const [topbarHeight, setTopbarHeight] = useState(0);
+  const [canInlineNav, setCanInlineNav] = useState(true);
+  useEffect(() => {
+    const updateLayout = () => {
+      if (topbarRef.current) {
+        setTopbarHeight(topbarRef.current.offsetHeight);
+      }
+      if (measureRef.current && topbarRef.current) {
+        const available = topbarRef.current.clientWidth;
+        const needed = measureRef.current.scrollWidth + 24;
+        setCanInlineNav(available >= needed);
+      }
+    };
+    updateLayout();
+    const ro = new ResizeObserver(updateLayout);
+    if (topbarRef.current) ro.observe(topbarRef.current);
+    window.addEventListener("resize", updateLayout);
+    return () => {
+      ro.disconnect();
+      window.removeEventListener("resize", updateLayout);
+    };
+  }, []);
+  useEffect(() => {
+    if (canInlineNav) {
+      setIsMenuOpen(false);
+    }
+  }, [canInlineNav]);
+  useEffect(() => {
+    const handleScroll = () => {
+      if (!canInlineNav && window.scrollY > 80) {
+        setIsMenuOpen(false);
+      }
+    };
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => {
+      window.removeEventListener("scroll", handleScroll);
+    };
+  }, [canInlineNav]);
   return (
     <>
       <div
+        ref={topbarRef}
         style={{
-          border: "",
-          padding: 15,
-          display: "flex",
-          alignIems: "center",
           position: "sticky",
           top: 0,
+          zIndex: 2000,
           width: "100%",
-          background: "rgba(127,127,127,0.62)",
+          background: "rgba(0,0,0,0.72)",
+          backdropFilter: "blur(14px)",
+          color: "#fff",
+          boxShadow: "0 4px 24px rgba(0,0,0,0.35)",
         }}
       >
-        <button onClick={() => setIsMenuOpen(!isMenuOpen)}>Menu</button>
-        <b
-          style={{ flex: 1, textAlign: "center", cursor: "pointer" }}
-          onClick={() => router.push("/")}
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "1fr auto 1fr",
+            alignItems: "center",
+            padding: "15px 20px",
+            gap: 20,
+          }}
         >
-          ASHERALEPH
-        </b>
-        <button onClick={() => setIsCartOpen(!isCartOpen)}>Carrito</button>
-      </div>
-      <div
-        style={{
-          display: isMenuOpen ? "flex" : "none",
-          flexDirection: "column",
-          flex: 1,
-          minHeight: "100vh",
-          minWidth: "100%",
-        }}
-      >
-        {menuItems.map((item) => (
-          <div style={{ padding: 10 }} key={item}>
-            {item}
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 22,
+              minWidth: 0,
+              overflow: "hidden",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {canInlineNav ? (
+              leftItems.map((item) => (
+                <button key={item} className="topLink" type="button">
+                  {item}
+                </button>
+              ))
+            ) : (
+              <button
+                className="topLink"
+                type="button"
+                onClick={() => setIsMenuOpen((v) => !v)}
+              >
+                Menu
+              </button>
+            )}
           </div>
-        ))}
+          <b
+            style={{
+              textAlign: "center",
+              cursor: "pointer",
+              letterSpacing: "0.18em",
+              fontWeight: 700,
+              whiteSpace: "nowrap",
+              textShadow: "0 1px 4px rgba(0,0,0,0.45)",
+            }}
+            onClick={() => router.push("/")}
+          >
+            ASHERALEPH
+          </b>
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "flex-end",
+              alignItems: "center",
+              gap: 18,
+              minWidth: 0,
+              overflow: "hidden",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {rightItems.map((item) => (
+              <button key={item} className="topLink" type="button">
+                {item}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div
+          ref={measureRef}
+          aria-hidden="true"
+          style={{
+            position: "absolute",
+            visibility: "hidden",
+            pointerEvents: "none",
+            left: -99999,
+            top: -99999,
+            whiteSpace: "nowrap",
+            display: "flex",
+            alignItems: "center",
+            gap: 18,
+            padding: "15px 20px",
+          }}
+        >
+          {leftItems.map((item) => (
+            <span key={item} style={{ padding: "6px 0" }}>
+              {item}
+            </span>
+          ))}
+          <span
+            style={{
+              letterSpacing: "0.18em",
+              fontWeight: 700,
+            }}
+          >
+            ASHERALEPH
+          </span>
+          {rightItems.map((item) => (
+            <span key={item} style={{ padding: "6px 0" }}>
+              {item}
+            </span>
+          ))}
+        </div>
       </div>
+      {!canInlineNav && (
+        <div
+          style={{
+            position: "fixed",
+            top: Math.max(0, topbarHeight - 1),
+            left: 0,
+            right: 0,
+            zIndex: 1500,
+            background: "rgba(0,0,0,0.94)",
+            backdropFilter: "blur(18px)",
+            color: "#fff",
+            overflow: "hidden",
+            opacity: isMenuOpen ? 1 : 0,
+            transform: isMenuOpen ? "translateY(0px)" : "translateY(-12px)",
+            pointerEvents: isMenuOpen ? "auto" : "none",
+            transition: "opacity 0.28s ease, transform 0.28s ease",
+            boxShadow: "0 14px 40px rgba(0,0,0,0.45)",
+          }}
+        >
+          <div style={{ display: "flex", flexDirection: "column" }}>
+            {leftItems.map((item) => (
+              <button
+                key={item}
+                type="button"
+                className="menuItem menuItemMobile"
+                onClick={() => setIsMenuOpen(false)}
+              >
+                {item}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+      <style jsx global>{`
+        .topLink {
+          appearance: none;
+          border: 0;
+          background: transparent;
+          color: inherit;
+          font: inherit;
+          font-size: 14px;
+          cursor: pointer;
+          padding: 6px 0;
+          letter-spacing: 0.02em;
+          transition:
+            opacity 180ms ease,
+            transform 180ms ease;
+        }
+        .topLink:hover {
+          opacity: 0.72;
+          transform: translateY(-1px);
+        }
+        .menuItem {
+          appearance: none;
+          border: 0;
+          background: transparent;
+          color: inherit;
+          font: inherit;
+          font-size: 18px;
+          letter-spacing: 0.02em;
+          cursor: pointer;
+          text-align: left;
+          transition:
+            background-color 180ms ease,
+            transform 180ms ease;
+        }
+        .menuItem:hover {
+          background: rgba(255, 255, 255, 0.05);
+          transform: translateX(4px);
+        }
+        .menuItemMobile {
+          padding: 20px;
+          border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+        }
+      `}</style>
     </>
   );
 }
-//===== components/Bottom.js =====
-export default function Bottom() {
-  return (
-    <div style={{ display: "flex", gap: 60, marginTop: 100, padding: 20 }}>
-      <div>
-        <h4>Relaciones con clientes</h4> <div>Contacto</div> <div>Atelier</div>{" "}
-        <div>Colecciones</div>
-      </div>{" "}
-      <div>
-        <h4>Legal</h4>
-        <div>Términos Y Condiciones</div> <div>Compras En Línea</div>{" "}
-        <div>Política de Privacidad</div>{" "}
-        <div>Términos Y Condiciones De Uso</div>{" "}
-        <div>Declaración de Accesibilidad</div>{" "}
-        <div>Opciones de Accessibilidad</div>
-      </div>
-      <div>
-        <h4>Únete a la conversación</h4> <div>Facebook</div>
-        <div>Instagram</div> <div>Pinterest</div> <div>Tiktok</div>
-      </div>
-    </div>
-  );
+//===== app/globals.css =====
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0a0a0a;
+    --foreground: #ededed;
+  }
+}
+html {
+  height: 100%;
+}
+html,
+body {
+  max-width: 100vw;
+}
+body {
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+  color: var(--foreground);
+  background: var(--background);
+  font-family: Arial, Helvetica, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden;
+}
+* {
+  box-sizing: border-box;
+  padding: 0;
+  margin: 0;
+}
+a {
+  color: inherit;
+  text-decoration: none;
+}
+.image-container {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(550px, 1fr));
+  width: 100vw;
+}
+.image-container img {
+  width: 100%;
+  max-width: 100vw;
+  height: 100%;
+  object-fit: cover;
+}
+.carousel-img {
+  /* opacity: 0.6; */
+}
+.carousel-img-wrapper {
+  overflow: hidden;
+  max-height: 300px;
+  min-height: 300px;
+}
+.carousel-img-wrapper img:hover {
+  transform: scale(1.62);
+}
+.detalles {
+  border-top: 1px solid silver;
+  margin-top: 20px;
+}
+.detalles div {
+  padding: 20px;
+  border-bottom: 1px solid silver;
+}
+.detalles div:hover {
+  background: silver;
+  color: black;
+}
+.scroll {
+  overflow-x: auto;
+  scrollbar-width: thin;
+  /* Firefox */
+  scrollbar-color: rgba(100, 100, 100, 0.3) transparent;
+}
+.scroll::-webkit-scrollbar {
+  height: 6px;
+  /* thin horizontal bar */
+}
+.scroll::-webkit-scrollbar-track {
+  background: transparent;
+  /* invisible track */
+}
+.scroll::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 999px;
+}
+.scroll::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.5);
+}
+.bottomBS h4 {
+  margin-bottom: 20px;
+}
+.bottomBS div {
+  margin-bottom: 10px;
+}
+button {
+  appearance: none;
+  border: none;
+  background: none;
+  padding: 3px;
+  margin: 0;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.45);
+  min-width: 40px;
+}
+.topLink {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  letter-spacing: 0.02em;
+  transition:
+    opacity 180ms ease,
+    transform 180ms ease;
+}
+.topLink:hover {
+  opacity: 0.72;
+  transform: translateY(-1px);
+}
+.topLinkRight {
+  font-size: 13px;
+}
+.menuItem {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 18px;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  text-align: left;
+  transition:
+    background-color 180ms ease,
+    transform 180ms ease;
+}
+.menuItem:hover {
+  background: rgba(255, 255, 255, 0.05);
+  transform: translateX(4px);
+}
+.menuItemMobile {
+  padding: 20px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+@media (prefers-color-scheme: dark) {
+  html {
+    color-scheme: dark;
+  }
+}
+//===== app/page.module.css =====
+.page {
+  --background: #fafafa;
+  --foreground: #fff;
+  --text-primary: #000;
+  --text-secondary: #666;
+  --button-primary-hover: #383838;
+  --button-secondary-hover: #f2f2f2;
+  --button-secondary-border: #ebebeb;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-geist-sans);
+  background-color: var(--background);
+  position: "relative";
+}
+.main {
+  display: flex;
+  flex: 1;
+  width: 100%;
+  /* max-width: 800px; */
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: space-between;
+  background-color: var(--foreground);
+  /* padding: 120px 60px; */
+}
+.intro {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  text-align: left;
+  gap: 24px;
+}
+.intro h1 {
+  max-width: 320px;
+  font-size: 40px;
+  font-weight: 600;
+  line-height: 48px;
+  letter-spacing: -2.4px;
+  text-wrap: balance;
+  color: var(--text-primary);
+}
+.intro p {
+  max-width: 440px;
+  font-size: 18px;
+  line-height: 32px;
+  text-wrap: balance;
+  color: var(--text-secondary);
+}
+.intro a {
+  font-weight: 500;
+  color: var(--text-primary);
+}
+.ctas {
+  display: flex;
+  flex-direction: row;
+  width: 100%;
+  max-width: 440px;
+  gap: 16px;
+  font-size: 14px;
+}
+.ctas a {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 40px;
+  padding: 0 16px;
+  border-radius: 128px;
+  border: 1px solid transparent;
+  transition: 0.2s;
+  cursor: pointer;
+  width: fit-content;
+  font-weight: 500;
+}
+a.primary {
+  background: var(--text-primary);
+  color: var(--background);
+  gap: 8px;
+}
+a.secondary {
+  border-color: var(--button-secondary-border);
+}
+/* Enable hover only on non-touch devices */
+@media (hover: hover) and (pointer: fine) {
+  a.primary:hover {
+    background: var(--button-primary-hover);
+    border-color: transparent;
+  }
+  a.secondary:hover {
+    background: var(--button-secondary-hover);
+    border-color: transparent;
+  }
+}
+@media (max-width: 600px) {
+  .main {
+    /* padding: 48px 24px; */
+  }
+  .intro {
+    gap: 16px;
+  }
+  .intro h1 {
+    font-size: 32px;
+    line-height: 40px;
+    letter-spacing: -1.92px;
+  }
+}
+@media (prefers-color-scheme: dark) {
+  .logo {
+    filter: invert();
+  }
+  .page {
+    --background: #000;
+    --foreground: #000;
+    --text-primary: #ededed;
+    --text-secondary: #999;
+    --button-primary-hover: #ccc;
+    --button-secondary-hover: #1a1a1a;
+    --button-secondary-border: #1a1a1a;
+  }
 }

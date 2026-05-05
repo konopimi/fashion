@@ -17,7 +17,6 @@ html {
 html,
 body {
   max-width: 100vw;
-  overflow-x: hidden;
 }
 
 body {
@@ -29,6 +28,7 @@ body {
   font-family: Arial, Helvetica, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden;
 }
 
 * {
@@ -122,11 +122,64 @@ button {
   appearance: none;
   border: none;
   background: none;
-  padding: 0;
+  padding: 3px;
   margin: 0;
   font: inherit;
   color: inherit;
   cursor: pointer;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.45);
+  min-width: 40px;
+}
+
+.topLink {
+  appearance: none;
+  border: 0;
+  background: transparent;
+
+  color: inherit;
+  font: inherit;
+
+  cursor: pointer;
+
+  letter-spacing: 0.02em;
+
+  transition:
+    opacity 180ms ease,
+    transform 180ms ease;
+}
+
+.topLink:hover {
+  opacity: 0.72;
+  transform: translateY(-1px);
+}
+
+.topLinkRight {
+  font-size: 13px;
+}
+
+.menuItem {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 18px;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  text-align: left;
+  transition:
+    background-color 180ms ease,
+    transform 180ms ease;
+}
+
+.menuItem:hover {
+  background: rgba(255, 255, 255, 0.05);
+  transform: translateX(4px);
+}
+
+.menuItemMobile {
+  padding: 20px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 @media (prefers-color-scheme: dark) {
