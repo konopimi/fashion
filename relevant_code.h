@@ -1,3 +1,118 @@
+//===== app/page.js =====
+"use client";
+import { useEffect, useRef } from "react";
+import styles from "./page.module.css";
+import Link from "next/link";
+import Scroll from "../components/Scroll";
+import { carouselItems, collections } from "../vStore/inventory";
+const LABEL_H = 46;
+const MARGIN = 16;
+export default function Home() {
+  const cardRefs = useRef([]);
+  const labelRefs = useRef([]);
+  useEffect(() => {
+    const update = () => {
+      const vh = window.innerHeight;
+      cardRefs.current.forEach((card, i) => {
+        const label = labelRefs.current[i];
+        if (!card || !label) return;
+        const rect = card.getBoundingClientRect();
+        if (rect.bottom > vh && rect.top < vh) {
+          label.style.top = `${vh - rect.top - LABEL_H - MARGIN}px`;
+          label.style.bottom = "auto";
+        } else {
+          label.style.top = "";
+          label.style.bottom = `${MARGIN}px`;
+        }
+      });
+    };
+    update();
+    window.addEventListener("scroll", update, { passive: true });
+    window.addEventListener("resize", update);
+    return () => {
+      window.removeEventListener("scroll", update);
+      window.removeEventListener("resize", update);
+    };
+  }, []);
+  return (
+    <div className={styles.page}>
+      <main className={styles.main}>
+        <section className="collectionGrid">
+          {collections.map((item, i) => (
+            <div
+              key={item.title}
+              ref={(el) => (cardRefs.current[i] = el)}
+              className="collectionCard"
+            >
+              <Link
+                href={item.href}
+                style={{ display: "block", width: "100%", height: "100%" }}
+              >
+                <img
+                  src={item.src}
+                  alt={item.title}
+                  className="collectionImage"
+                />
+              </Link>
+              <div
+                ref={(el) => (labelRefs.current[i] = el)}
+                className="collectionLabel"
+              >
+                {item.title}
+              </div>
+            </div>
+          ))}
+        </section>
+        <Scroll carouselItems={carouselItems} />
+      </main>
+      <style jsx global>{`
+        .collectionGrid {
+          display: grid;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          gap: 0;
+          width: 100%;
+        }
+        @media (max-width: 768px) {
+          .collectionGrid {
+            grid-template-columns: 1fr;
+          }
+        }
+        .collectionCard {
+          position: relative;
+          display: block;
+          overflow: hidden;
+          cursor: pointer;
+          aspect-ratio: 4 / 5;
+          line-height: 0;
+        }
+        .collectionLabel {
+          position: absolute;
+          left: 16px;
+          bottom: 16px;
+          width: fit-content;
+          padding: 8px 14px;
+          background: rgba(20, 20, 20, 0.62);
+          color: #fff;
+          letter-spacing: 0.08em;
+          text-transform: uppercase;
+          font-size: 12px;
+          line-height: normal;
+          pointer-events: none;
+        }
+        .collectionImage {
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
+          display: block;
+          transition: transform 350ms ease;
+        }
+        .collectionCard:hover .collectionImage {
+          transform: scale(1.03);
+        }
+      `}</style>
+    </div>
+  );
+}
 //===== app/layout.js =====
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
@@ -19,6 +134,12 @@ export default function RootLayout({ children }) {
   return (
     <html lang="en" className={`${geistSans.variable} ${geistMono.variable}`}>
       <body>
+        <pre>{`
+#ffhgfhgf
+          ##Ser colombiano
+          Es habitar la no identidad. Pues si bien la riqueza, diversidad y abundancia de todo aquello que compone lo humano es inmegable, la raiz
+          que sosiene esa humanidad que es difusa; o en la mayoría de los casos imperceptible.
+           `}</pre>
         <Top />
         {children}
         <Bottom />
@@ -26,10 +147,61 @@ export default function RootLayout({ children }) {
     </html>
   );
 }
-//===== app/collections/[slug]/page.js =====
+//===== app/prod/[id]/page.js =====
 "use client";
 import { useParams } from "next/navigation";
+import Scroll from "../../../components/Scroll";
+import { carouselItems, getItemById } from "../../../vStore/inventory";
+export default function Page() {
+  const params = useParams();
+  const id = Array.isArray(params.id) ? params.id[0] : params.id;
+  const item = getItemById(id);
+  return (
+    <>
+      <div style={{ display: "flex", flexWrap: "wrap" }}>
+        <div style={{ minWidth: 500, flex: 1, overflow: "hidden" }}>
+          {item.src && (
+            <img style={{ width: "100%" }} src={item.src} alt={item.name} />
+          )}
+        </div>
+        <div style={{ flex: 1, minWidth: 500 }}>
+          <div style={{ padding: "40px 100px" }}>
+            <h1>{item.name}</h1>
+            <div>$2.100.000,00 COP </div>
+            <div>
+              {`Seleccionar Talla : XS Guía de
+            Tallas`}
+            </div>
+            <button
+              style={{
+                borderRadius: 5,
+                padding: 20,
+                width: "100%",
+                background: "rgba(127,127,127,0.62)",
+                marginTop: 60,
+                marginBottom: 60,
+              }}
+            >
+              Agregar al Carrito
+            </button>
+            <div className="detalles">
+              <div>DETALLES</div>
+              <div>ENVIOS Y DEVOLUCIONES</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div style={{ padding: 40 }}>You may also like</div>
+      <Scroll carouselItems={carouselItems} />
+    </>
+  );
+}
+//===== app/collections/[slug]/page.js =====
+"use client";
+import { useMemo } from "react";
+import { useParams } from "next/navigation";
 import Link from "next/link";
+import { carouselItems } from "../../../vStore/inventory";
 const mockProducts = [
   { id: 1, name: "Vestido Alma", price: "$2.100.000" },
   { id: 2, name: "Blusa Cielo", price: "$980.000" },
@@ -40,38 +212,73 @@ const mockProducts = [
   { id: 7, name: "Vestido Mar", price: "$1.900.000" },
   { id: 8, name: "Conjunto Río", price: "$2.800.000" },
 ];
+function shuffleArray(array) {
+  const arr = [...array];
+  for (let i = arr.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
 export default function CollectionPage() {
   const { slug } = useParams();
-  const title = slug
-    .split("-")
-    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-    .join(" ");
+  const title = Array.isArray(slug)
+    ? slug[0]
+    : slug
+      .split("-")
+      .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+      .join(" ");
+  const shuffledImages = useMemo(() => {
+    if (!carouselItems?.length) return [];
+    return shuffleArray(carouselItems);
+  }, []);
   return (
     <>
       <h4
         style={{
           position: "sticky",
-          top: 100,
+          top: "var(--topbar-height, 0px)",
+          padding: 10,
           zIndex: 10,
           textAlign: "center",
           textTransform: "uppercase",
           fontWeight: 400,
-          background: "var(--background)",
-          marginBottom: 2,
+          background: "rgba(127,127,127,0.72)",
+          backdropFilter: "blur(14px)",
+          boxShadow: "0 4px 24px rgba(0,0,0,0.35)",
+          textShadow: "0 1px 4px rgba(0,0,0,0.45)",
         }}
       >
         {title}
       </h4>
       <div className="mosaicGrid">
-        {mockProducts.map((p) => (
-          <Link key={p.id} href={`/prod/${p.id}`} className="mosaicCard">
-            <div className="mosaicImg" />
-            <div className="mosaicInfo">
-              <span className="mosaicName">{p.name}</span>
-              <span className="mosaicPrice">{p.price} COP</span>
-            </div>
-          </Link>
-        ))}
+        {mockProducts.map((p, i) => {
+          const randomItem =
+            shuffledImages[i % shuffledImages.length] ?? shuffledImages[0];
+          return (
+            <Link
+              key={p.id}
+              href={`/prod/${randomItem.id}`}
+              className="mosaicCard"
+            >
+              <div className="mosaicImgWrapper">
+                {randomItem?.src ? (
+                  <img
+                    src={randomItem.src}
+                    alt={p.name}
+                    className="mosaicImg"
+                  />
+                ) : (
+                  <div className="mosaicFallback" />
+                )}
+              </div>
+              <div className="mosaicInfo">
+                <span className="mosaicName">{p.name}</span>
+                <span className="mosaicPrice">{p.price} COP</span>
+              </div>
+            </Link>
+          );
+        })}
       </div>
       <style jsx global>{`
         .mosaicGrid {
@@ -96,15 +303,29 @@ export default function CollectionPage() {
           color: inherit;
           cursor: pointer;
         }
-        .mosaicImg {
+        .mosaicImgWrapper {
           width: 100%;
           aspect-ratio: 3 / 4;
-          background: #e8e4df;
           overflow: hidden;
-          transition: opacity 300ms ease;
+          background: #e8e4df;
+        }
+        .mosaicImg {
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
+          display: block;
+          transition:
+            transform 500ms ease,
+            opacity 300ms ease;
+        }
+        .mosaicFallback {
+          width: 100%;
+          height: 100%;
+          background: #e8e4df;
         }
         .mosaicCard:hover .mosaicImg {
-          opacity: 0.85;
+          opacity: 0.9;
+          transform: scale(1.03);
         }
         .mosaicInfo {
           display: flex;
@@ -125,6 +346,107 @@ export default function CollectionPage() {
     </>
   );
 }
+//===== components/Scroll.js =====
+"use client";
+import { useEffect, useRef } from "react";
+import { useRouter } from "next/navigation";
+export default function Scroll({ carouselItems }) {
+  const scrollRef = useRef(null);
+  const router = useRouter();
+  const dragRef = useRef({
+    isDown: false,
+    moved: false,
+    startX: 0,
+    scrollLeft: 0,
+    pointerId: null,
+    target: null,
+  });
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const endDrag = () => {
+      const { pointerId, moved, target } = dragRef.current;
+      dragRef.current.isDown = false;
+      if (pointerId !== null && el.hasPointerCapture?.(pointerId)) {
+        el.releasePointerCapture(pointerId);
+      }
+      dragRef.current.pointerId = null;
+      if (!moved && target) {
+        const itemEl = target.closest("[data-item-id]");
+        if (itemEl) {
+          router.push(`/prod/${itemEl.dataset.itemId}`);
+        }
+      }
+      dragRef.current.moved = false;
+      dragRef.current.target = null;
+    };
+    const onPointerDown = (e) => {
+      dragRef.current.isDown = true;
+      dragRef.current.moved = false;
+      dragRef.current.startX = e.clientX;
+      dragRef.current.scrollLeft = el.scrollLeft;
+      dragRef.current.pointerId = e.pointerId;
+      dragRef.current.target = e.target;
+      el.setPointerCapture(e.pointerId);
+    };
+    const onPointerMove = (e) => {
+      if (!dragRef.current.isDown) return;
+      const dx = e.clientX - dragRef.current.startX;
+      if (Math.abs(dx) > 5) dragRef.current.moved = true;
+      el.scrollLeft = dragRef.current.scrollLeft - dx;
+    };
+    el.addEventListener("pointerdown", onPointerDown);
+    el.addEventListener("pointermove", onPointerMove);
+    el.addEventListener("pointerup", endDrag);
+    el.addEventListener("pointercancel", endDrag);
+    el.addEventListener("lostpointercapture", endDrag);
+    return () => {
+      el.removeEventListener("pointerdown", onPointerDown);
+      el.removeEventListener("pointermove", onPointerMove);
+      el.removeEventListener("pointerup", endDrag);
+      el.removeEventListener("pointercancel", endDrag);
+      el.removeEventListener("lostpointercapture", endDrag);
+    };
+  }, []);
+  return (
+    <div
+      ref={scrollRef}
+      style={{
+        overflowX: "scroll",
+        maxWidth: "100%",
+        cursor: "grab",
+        userSelect: "none",
+        touchAction: "pan-y",
+      }}
+    >
+      <div style={{ display: "flex" }}>
+        {carouselItems.map((item) => (
+          <div
+            key={item.id}
+            data-item-id={item.id}
+            style={{ overflow: "hidden", minWidth: "300px", cursor: "pointer" }}
+          >
+            <div className="carousel-img-wrapper">
+              <img
+                className="carousel-img"
+                style={{
+                  maxHeight: "300px",
+                  minHeight: "300px",
+                  pointerEvents: "none",
+                }}
+                src={item.src}
+                alt={item.name}
+              />
+            </div>
+            <div style={{ padding: 20, pointerEvents: "none" }}>
+              {item.name}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
 //===== components/Top.js =====
 "use client";
 import { useEffect, useRef, useState } from "react";
@@ -136,12 +458,16 @@ export default function Top() {
   const topbarRef = useRef(null);
   const measureRef = useRef(null);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [activeItem, setActiveItem] = useState(null);
+  const [mobileActiveItem, setMobileActiveItem] = useState(null);
   const [topbarHeight, setTopbarHeight] = useState(0);
   const [canInlineNav, setCanInlineNav] = useState(true);
   useEffect(() => {
     const updateLayout = () => {
       if (topbarRef.current) {
-        setTopbarHeight(topbarRef.current.offsetHeight);
+        const h = topbarRef.current.offsetHeight;
+        setTopbarHeight(h);
+        document.documentElement.style.setProperty("--topbar-height", `${h}px`);
       }
       if (measureRef.current && topbarRef.current) {
         const available = topbarRef.current.clientWidth;
@@ -161,19 +487,39 @@ export default function Top() {
   useEffect(() => {
     if (canInlineNav) {
       setIsMenuOpen(false);
+      setMobileActiveItem(null);
     }
+    setActiveItem(null);
   }, [canInlineNav]);
   useEffect(() => {
     const handleScroll = () => {
       if (!canInlineNav && window.scrollY > 80) {
         setIsMenuOpen(false);
+        setMobileActiveItem(null);
+      }
+      if (canInlineNav && window.scrollY > 80) {
+        setActiveItem(null);
       }
     };
     window.addEventListener("scroll", handleScroll, { passive: true });
-    return () => {
-      window.removeEventListener("scroll", handleScroll);
-    };
+    return () => window.removeEventListener("scroll", handleScroll);
   }, [canInlineNav]);
+  useEffect(() => {
+    if (!activeItem) return;
+    const handleClickOutside = (e) => {
+      if (topbarRef.current && !topbarRef.current.contains(e.target)) {
+        setActiveItem(null);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [activeItem]);
+  const handleLeftItemClick = (item) => {
+    setActiveItem((prev) => (prev === item ? null : item));
+  };
+  const isDropdownOpen = canInlineNav && activeItem !== null;
+  const isMobileSubOpen =
+    !canInlineNav && isMenuOpen && mobileActiveItem !== null;
   return (
     <>
       <div
@@ -183,9 +529,8 @@ export default function Top() {
           top: 0,
           zIndex: 2000,
           width: "100%",
-          background: "rgba(0,0,0,0.72)",
+          background: "rgba(127,127,127,0.72)",
           backdropFilter: "blur(14px)",
-          color: "#fff",
           boxShadow: "0 4px 24px rgba(0,0,0,0.35)",
         }}
       >
@@ -210,7 +555,12 @@ export default function Top() {
           >
             {canInlineNav ? (
               leftItems.map((item) => (
-                <button key={item} className="topLink" type="button">
+                <button
+                  key={item}
+                  className={`topLink${activeItem === item ? " topLinkActive" : ""}`}
+                  type="button"
+                  onClick={() => handleLeftItemClick(item)}
+                >
                   {item}
                 </button>
               ))
@@ -218,7 +568,10 @@ export default function Top() {
               <button
                 className="topLink"
                 type="button"
-                onClick={() => setIsMenuOpen((v) => !v)}
+                onClick={() => {
+                  setIsMenuOpen((v) => !v);
+                  setMobileActiveItem(null);
+                }}
               >
                 Menu
               </button>
@@ -233,7 +586,10 @@ export default function Top() {
               whiteSpace: "nowrap",
               textShadow: "0 1px 4px rgba(0,0,0,0.45)",
             }}
-            onClick={() => router.push("/")}
+            onClick={() => {
+              router.push("/");
+              setActiveItem(null);
+            }}
           >
             ASHERALEPH
           </b>
@@ -276,12 +632,7 @@ export default function Top() {
               {item}
             </span>
           ))}
-          <span
-            style={{
-              letterSpacing: "0.18em",
-              fontWeight: 700,
-            }}
-          >
+          <span style={{ letterSpacing: "0.18em", fontWeight: 700 }}>
             ASHERALEPH
           </span>
           {rightItems.map((item) => (
@@ -291,6 +642,40 @@ export default function Top() {
           ))}
         </div>
       </div>
+      {/* Desktop dropdown */}
+      <div
+        style={{
+          position: "fixed",
+          top: Math.max(0, topbarHeight - 1),
+          left: 0,
+          right: 0,
+          zIndex: 1500,
+          background: "rgba(0,0,0,0.94)",
+          backdropFilter: "blur(18px)",
+          color: "#fff",
+          overflow: "hidden",
+          opacity: isDropdownOpen ? 1 : 0,
+          transform: isDropdownOpen ? "translateY(0px)" : "translateY(-12px)",
+          pointerEvents: isDropdownOpen ? "auto" : "none",
+          transition: "opacity 0.28s ease, transform 0.28s ease",
+          boxShadow: "0 14px 40px rgba(0,0,0,0.45)",
+        }}
+      >
+        <div style={{ padding: "32px 40px 28px" }}>
+          <h4
+            style={{
+              margin: 0,
+              fontWeight: 600,
+              fontSize: 20,
+              letterSpacing: "0.08em",
+              color: "#fff",
+            }}
+          >
+            {activeItem}
+          </h4>
+        </div>
+      </div>
+      {/* Mobile dropdown */}
       {!canInlineNav && (
         <div
           style={{
@@ -310,17 +695,85 @@ export default function Top() {
             boxShadow: "0 14px 40px rgba(0,0,0,0.45)",
           }}
         >
-          <div style={{ display: "flex", flexDirection: "column" }}>
-            {leftItems.map((item) => (
+          {/* Sliding track — two panels side by side */}
+          <div
+            style={{
+              display: "flex",
+              width: "200%",
+              transform: isMobileSubOpen
+                ? "translateX(-50%)"
+                : "translateX(0%)",
+              transition: "transform 0.3s cubic-bezier(0.4,0,0.2,1)",
+            }}
+          >
+            {/* Panel 1 — main list */}
+            <div style={{ width: "50%", flexShrink: 0 }}>
+              {leftItems.map((item) => (
+                <button
+                  key={item}
+                  type="button"
+                  className="menuItem menuItemMobile"
+                  onClick={() => setMobileActiveItem(item)}
+                >
+                  <span>{item}</span>
+                  <svg
+                    width="16"
+                    height="16"
+                    viewBox="0 0 16 16"
+                    fill="none"
+                    style={{ opacity: 0.5 }}
+                  >
+                    <path
+                      d="M6 3l5 5-5 5"
+                      stroke="currentColor"
+                      strokeWidth="1.6"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                </button>
+              ))}
+            </div>
+            {/* Panel 2 — sub-menu */}
+            <div style={{ width: "50%", flexShrink: 0 }}>
+              {/* Back button */}
               <button
-                key={item}
                 type="button"
-                className="menuItem menuItemMobile"
-                onClick={() => setIsMenuOpen(false)}
+                className="menuItem menuItemMobile mobileBackBtn"
+                onClick={() => setMobileActiveItem(null)}
               >
-                {item}
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 16 16"
+                  fill="none"
+                  style={{ opacity: 0.6 }}
+                >
+                  <path
+                    d="M10 3L5 8l5 5"
+                    stroke="currentColor"
+                    strokeWidth="1.6"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+                <span style={{ opacity: 0.6, fontSize: 13 }}>Volver</span>
               </button>
-            ))}
+              {/* Sub-menu title */}
+              <div style={{ padding: "24px 20px 16px" }}>
+                <h4
+                  style={{
+                    margin: 0,
+                    fontWeight: 600,
+                    fontSize: 20,
+                    letterSpacing: "0.08em",
+                    color: "#fff",
+                  }}
+                >
+                  {mobileActiveItem}
+                </h4>
+              </div>
+            </div>
           </div>
         </div>
       )}
@@ -343,6 +796,12 @@ export default function Top() {
           opacity: 0.72;
           transform: translateY(-1px);
         }
+        .topLinkActive {
+          opacity: 0.72;
+          transform: translateY(-1px);
+          text-decoration: underline;
+          text-underline-offset: 4px;
+        }
         .menuItem {
           appearance: none;
           border: 0;
@@ -353,19 +812,59 @@ export default function Top() {
           letter-spacing: 0.02em;
           cursor: pointer;
           text-align: left;
+          width: 100%;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
           transition:
             background-color 180ms ease,
             transform 180ms ease;
         }
         .menuItem:hover {
           background: rgba(255, 255, 255, 0.05);
-          transform: translateX(4px);
         }
         .menuItemMobile {
           padding: 20px;
           border-bottom: 1px solid rgba(255, 255, 255, 0.08);
         }
+        .mobileBackBtn {
+          justify-content: flex-start;
+          gap: 8px;
+          font-size: 14px;
+        }
       `}</style>
+    </>
+  );
+}
+//===== components/Bottom.js =====
+export default function Bottom() {
+  return (
+    <>
+      <div className="image-container">
+        <img src="https://co.silviatcherassi.com/cdn/shop/files/ST_d8f2e597-969e-4663-a915-a59d6f3d51c1.png?v=1759248174&width=1500" />
+        <img src="https://co.silviatcherassi.com/cdn/shop/files/Sofia_Tennis_Bag.jpg?v=1775766367&width=1500" />
+      </div>
+      <div
+        className="bottomBS"
+        style={{ display: "flex", gap: 60, marginTop: 100, padding: 20 }}
+      >
+        <div>
+          <h4>Relaciones con clientes</h4> <div>Contacto</div>{" "}
+          <div>Atelier</div> <div>Colecciones</div>
+        </div>{" "}
+        <div>
+          <h4>Legal</h4>
+          <div>Términos Y Condiciones</div> <div>Compras En Línea</div>{" "}
+          <div>Política de Privacidad</div>{" "}
+          <div>Términos Y Condiciones De Uso</div>{" "}
+          <div>Declaración de Accesibilidad</div>{" "}
+          <div>Opciones de Accessibilidad</div>
+        </div>
+        <div>
+          <h4>Únete a la conversación</h4> <div>Facebook</div>
+          <div>Instagram</div> <div>Pinterest</div> <div>Tiktok</div>
+        </div>
+      </div>
     </>
   );
 }

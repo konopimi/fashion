@@ -2,6 +2,8 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import Top from "../components/Top.js";
 import Bottom from "../components/Bottom.js";
+
+import CartOverlay from "../components/Cart.js";
 const geistSans = Geist({
   variable: "--font-geist-sans",
   subsets: ["latin"],
@@ -21,6 +23,19 @@ export default function RootLayout({ children }) {
   return (
     <html lang="en" className={`${geistSans.variable} ${geistMono.variable}`}>
       <body>
+        <CartOverlay />
+        {false && (
+          <pre>{`
+
+#ffhgfhgf
+
+          ##Ser colombiano
+
+          Es habitar la no identidad. Pues si bien la riqueza, diversidad y abundancia de todo aquello que compone lo humano es inmegable, la raiz
+          que sosiene esa humanidad que es difusa; o en la mayoría de los casos imperceptible.
+
+           `}</pre>
+        )}
         <Top />
         {children}
         <Bottom />

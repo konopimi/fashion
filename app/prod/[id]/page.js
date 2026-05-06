@@ -27,9 +27,10 @@ export default function Page() {
             </div>
             <button
               style={{
+                borderRadius: 5,
                 padding: 20,
                 width: "100%",
-                background: "silver",
+                background: "rgba(127,127,127,0.62)",
                 marginTop: 60,
                 marginBottom: 60,
               }}
