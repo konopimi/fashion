@@ -1,4 +1,3 @@
-// components/Cart.js
 "use client";
 
 import { useEffect, useState } from "react";
@@ -64,11 +63,50 @@ export default function CartOverlay() {
   const { items, count, subtotal, updateQty, removeItem } = useCart();
   const { products } = useInventory();
 
-  // Build a lookup map for product details
   const productMap = {};
   products.forEach((p) => {
     productMap[p.id] = p;
   });
+
+  const sendWhatsAppOrder = () => {
+    // Ask for customer's phone number
+    const customerPhone = window.prompt(
+      "Por favor, ingresa tu número de teléfono (ej: 3001234567) para que podamos contactarte:",
+      "",
+    );
+    if (!customerPhone) {
+      alert("Necesitamos tu número de teléfono para procesar el pedido.");
+      return;
+    }
+
+    // Basic validation: remove non-digits, check length
+    const cleaned = customerPhone.replace(/\D/g, "");
+    if (cleaned.length < 7) {
+      alert(
+        "Por favor ingresa un número de teléfono válido (mínimo 7 dígitos).",
+      );
+      return;
+    }
+
+    // Seller's WhatsApp number (change to your own number, international format without '+')
+    const sellerNumber = "573153410282"; // Example: Colombia 3001234567
+
+    // Build the message
+    let message = "🛍️ *Nuevo Pedido*%0A%0A";
+    message += `📞 *Teléfono del cliente:* ${cleaned}%0A%0A`;
+    items.forEach((item, idx) => {
+      const product = productMap[item.id];
+      if (!product) return;
+      const variantText = item.variant ? ` (${item.variant})` : "";
+      const itemPrice = fmt(item.price * item.qty);
+      message += `${idx + 1}. ${product.name}${variantText} x${item.qty} → ${itemPrice}%0A`;
+    });
+    message += `%0A📦 *Subtotal:* ${fmt(subtotal)}%0A`;
+    message += `🚚 *Envío e impuestos:* Calculados al finalizar%0A%0A`;
+    message += `🔗 Gracias por tu compra.`;
+
+    window.open(`https://wa.me/${sellerNumber}?text=${message}`, "_blank");
+  };
 
   useEffect(() => {
     if (!open) return;
@@ -86,7 +124,6 @@ export default function CartOverlay() {
 
   return (
     <>
-      {/* floating toggle button */}
       <button
         onClick={() => setOpen((v) => !v)}
         style={{ ...s.fab, ...(open ? s.fabOpen : {}) }}
@@ -115,7 +152,6 @@ export default function CartOverlay() {
         )}
       </button>
 
-      {/* backdrop */}
       <div
         onClick={() => setOpen(false)}
         style={{
@@ -125,7 +161,6 @@ export default function CartOverlay() {
         }}
       />
 
-      {/* drawer */}
       <aside
         style={{
           ...s.drawer,
@@ -185,7 +220,9 @@ export default function CartOverlay() {
               <span style={s.subtotalValue}>{fmt(subtotal)}</span>
             </div>
             <p style={s.taxNote}>Envío e impuestos calculados al finalizar</p>
-            <button style={s.checkoutBtn}>Finalizar Compra</button>
+            <button style={s.checkoutBtn} onClick={sendWhatsAppOrder}>
+              Finalizar Compra
+            </button>
             <button style={s.continueBtn} onClick={() => setOpen(false)}>
               Seguir comprando
             </button>
@@ -196,7 +233,7 @@ export default function CartOverlay() {
   );
 }
 
-// ---------- Styles object (unchanged) ----------
+// ---------- Styles (unchanged) ----------
 const s = {
   fab: {
     position: "fixed",
