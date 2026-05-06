@@ -1,25 +1,9 @@
+// components/Cart.js
 "use client";
-import { useEffect, useState } from "react";
 
-import { products, collections } from "../vStore/inventory";
-const DEMO_ITEMS = [
-  {
-    id: "sabina-dress",
-    name: "Vestido Alma",
-    variant: "XS",
-    price: 2100000,
-    qty: 1,
-    src: null,
-  },
-  {
-    id: "rowan-dress",
-    name: "Blusa Cielo",
-    variant: "S",
-    price: 980000,
-    qty: 2,
-    src: null,
-  },
-];
+import { useEffect, useState } from "react";
+import { useCart } from "../vStore/cartStore";
+import { useInventory } from "../vStore/inventoryStore";
 
 const fmt = (n) =>
   new Intl.NumberFormat("es-CO", {
@@ -28,8 +12,8 @@ const fmt = (n) =>
     maximumFractionDigits: 0,
   }).format(n);
 
-function CartItem({ item, onQty, onRemove }) {
-  const product = products.find((product) => product.id == item.id);
+function CartItem({ item, product, onQty, onRemove }) {
+  if (!product) return null;
   return (
     <div style={s.item}>
       <div style={s.thumb}>
@@ -51,19 +35,22 @@ function CartItem({ item, onQty, onRemove }) {
           <div style={s.stepper}>
             <button
               style={s.stepBtn}
-              onClick={() => onQty(item.id, item.qty - 1)}
+              onClick={() => onQty(item.id, item.variant, item.qty - 1)}
             >
               −
             </button>
             <span style={s.qty}>{item.qty}</span>
             <button
               style={s.stepBtn}
-              onClick={() => onQty(item.id, item.qty + 1)}
+              onClick={() => onQty(item.id, item.variant, item.qty + 1)}
             >
               +
             </button>
           </div>
-          <button style={s.removeBtn} onClick={() => onRemove(item.id)}>
+          <button
+            style={s.removeBtn}
+            onClick={() => onRemove(item.id, item.variant)}
+          >
             Eliminar
           </button>
         </div>
@@ -74,18 +61,14 @@ function CartItem({ item, onQty, onRemove }) {
 
 export default function CartOverlay() {
   const [open, setOpen] = useState(false);
-  const [items, setItems] = useState(DEMO_ITEMS);
+  const { items, count, subtotal, updateQty, removeItem } = useCart();
+  const { products } = useInventory();
 
-  const count = items.reduce((s, i) => s + i.qty, 0);
-  const subtotal = items.reduce((s, i) => s + i.price * i.qty, 0);
-
-  const setQty = (id, qty) => {
-    if (qty < 1) return;
-    setItems((prev) => prev.map((i) => (i.id === id ? { ...i, qty } : i)));
-  };
-
-  const removeItem = (id) =>
-    setItems((prev) => prev.filter((i) => i.id !== id));
+  // Build a lookup map for product details
+  const productMap = {};
+  products.forEach((p) => {
+    productMap[p.id] = p;
+  });
 
   useEffect(() => {
     if (!open) return;
@@ -185,9 +168,10 @@ export default function CartOverlay() {
           ) : (
             items.map((item) => (
               <CartItem
-                key={item.id}
+                key={`${item.id}-${item.variant}`}
                 item={item}
-                onQty={setQty}
+                product={productMap[item.id]}
+                onQty={updateQty}
                 onRemove={removeItem}
               />
             ))
@@ -212,6 +196,7 @@ export default function CartOverlay() {
   );
 }
 
+// ---------- Styles object (unchanged) ----------
 const s = {
   fab: {
     position: "fixed",

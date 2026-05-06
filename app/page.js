@@ -1,14 +1,16 @@
+// app/page.js
 "use client";
 import { useEffect, useRef } from "react";
 import styles from "./page.module.css";
 import Link from "next/link";
 import Scroll from "../components/Scroll";
-import { products, collections } from "../vStore/inventory";
+import { useInventory } from "../vStore/inventoryStore"; // <-- use hook
 
 const LABEL_H = 46;
 const MARGIN = 16;
 
 export default function Home() {
+  const { products, collections } = useInventory(); // <-- reactive data
   const cardRefs = useRef([]);
   const labelRefs = useRef([]);
 
@@ -28,7 +30,6 @@ export default function Home() {
         }
       });
     };
-
     update();
     window.addEventListener("scroll", update, { passive: true });
     window.addEventListener("resize", update);
@@ -59,7 +60,7 @@ export default function Home() {
         <section className="collectionGrid">
           {collections.map((item, i) => (
             <div
-              key={item.title}
+              key={item.id || item.title}
               ref={(el) => (cardRefs.current[i] = el)}
               className="collectionCard"
             >
@@ -69,7 +70,7 @@ export default function Home() {
               >
                 <img
                   src={item.src}
-                  alt={item.title}
+                  alt={item.name || item.title}
                   className="collectionImage"
                 />
               </Link>
@@ -77,12 +78,11 @@ export default function Home() {
                 ref={(el) => (labelRefs.current[i] = el)}
                 className="collectionLabel"
               >
-                {item.title}
+                {item.name || item.title}
               </div>
             </div>
           ))}
         </section>
-
         <div
           style={{
             width: "100%",
@@ -101,6 +101,7 @@ export default function Home() {
         <Scroll carouselItems={products} />
       </main>
       <style jsx global>{`
+        /* existing styles unchanged */
         .collectionGrid {
           display: grid;
           grid-template-columns: repeat(2, minmax(0, 1fr));

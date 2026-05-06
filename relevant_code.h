@@ -4,7 +4,7 @@ import { useEffect, useRef } from "react";
 import styles from "./page.module.css";
 import Link from "next/link";
 import Scroll from "../components/Scroll";
-import { carouselItems, collections } from "../vStore/inventory";
+import { products, collections } from "../vStore/inventory";
 const LABEL_H = 46;
 const MARGIN = 16;
 export default function Home() {
@@ -37,6 +37,21 @@ export default function Home() {
   return (
     <div className={styles.page}>
       <main className={styles.main}>
+        <div
+          style={{
+            width: "100%",
+            padding: 5,
+            position: "sticky",
+            top: "var(--topbar-height, 0px)",
+            zIndex: 99,
+            background: "rgba(127,127,127,0.72)",
+            backdropFilter: "blur(7px)",
+            boxShadow: "0 4px 24px rgba(0,0,0,0.35)",
+            textShadow: "0 1px 4px rgba(0,0,0,0.45)",
+          }}
+        >
+          Colecciones
+        </div>
         <section className="collectionGrid">
           {collections.map((item, i) => (
             <div
@@ -63,7 +78,22 @@ export default function Home() {
             </div>
           ))}
         </section>
-        <Scroll carouselItems={carouselItems} />
+        <div
+          style={{
+            width: "100%",
+            padding: 5,
+            position: "sticky",
+            top: "var(--topbar-height, 0px)",
+            zIndex: 99,
+            background: "rgba(127,127,127,0.72)",
+            backdropFilter: "blur(7px)",
+            boxShadow: "0 4px 24px rgba(0,0,0,0.35)",
+            textShadow: "0 1px 4px rgba(0,0,0,0.45)",
+          }}
+        >
+          Comprar
+        </div>
+        <Scroll carouselItems={products} />
       </main>
       <style jsx global>{`
         .collectionGrid {
@@ -116,8 +146,7 @@ export default function Home() {
 //===== app/layout.js =====
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import Top from "../components/Top.js";
-import Bottom from "../components/Bottom.js";
+import LayoutWrapper from "../components/LayoutWrapper";
 const geistSans = Geist({
   variable: "--font-geist-sans",
   subsets: ["latin"],
@@ -134,15 +163,7 @@ export default function RootLayout({ children }) {
   return (
     <html lang="en" className={`${geistSans.variable} ${geistMono.variable}`}>
       <body>
-        <pre>{`
-#ffhgfhgf
-          ##Ser colombiano
-          Es habitar la no identidad. Pues si bien la riqueza, diversidad y abundancia de todo aquello que compone lo humano es inmegable, la raiz
-          que sosiene esa humanidad que es difusa; o en la mayoría de los casos imperceptible.
-           `}</pre>
-        <Top />
-        {children}
-        <Bottom />
+        <LayoutWrapper>{children}</LayoutWrapper>
       </body>
     </html>
   );
@@ -150,29 +171,58 @@ export default function RootLayout({ children }) {
 //===== app/prod/[id]/page.js =====
 "use client";
 import { useParams } from "next/navigation";
+import { useState } from "react";
+import { useInventory } from "../../../vStore/inventory";
+import { useCart } from "../../../vStore/cartStore";
 import Scroll from "../../../components/Scroll";
-import { carouselItems, getItemById } from "../../../vStore/inventory";
-export default function Page() {
+export default function ProductPage() {
   const params = useParams();
   const id = Array.isArray(params.id) ? params.id[0] : params.id;
-  const item = getItemById(id);
+  const { getItemById, products } = useInventory();
+  const product = getItemById(id);
+  const { addItem } = useCart();
+  const [quantity, setQuantity] = useState(1);
+  if (!product) return <div>Producto no encontrado</div>;
+  const handleAddToCart = () => {
+    addItem(product, null, quantity);
+    alert(`Añadido al carrito: ${product.name} x${quantity}`);
+  };
+  const fmtPrice = (price) =>
+    new Intl.NumberFormat("es-CO", {
+      style: "currency",
+      currency: "COP",
+      maximumFractionDigits: 0,
+    }).format(price);
   return (
     <>
       <div style={{ display: "flex", flexWrap: "wrap" }}>
         <div style={{ minWidth: 500, flex: 1, overflow: "hidden" }}>
-          {item.src && (
-            <img style={{ width: "100%" }} src={item.src} alt={item.name} />
+          {product.src && (
+            <img
+              style={{ width: "100%" }}
+              src={product.src}
+              alt={product.name}
+            />
           )}
         </div>
         <div style={{ flex: 1, minWidth: 500 }}>
           <div style={{ padding: "40px 100px" }}>
-            <h1>{item.name}</h1>
-            <div>$2.100.000,00 COP </div>
-            <div>
-              {`Seleccionar Talla : XS Guía de
-            Tallas`}
+            <h1>{product.name}</h1>
+            <div>{fmtPrice(product.price)}</div>
+            <div style={{ marginTop: 20 }}>
+              <label>Cantidad: </label>
+              <input
+                type="number"
+                min="1"
+                value={quantity}
+                onChange={(e) =>
+                  setQuantity(Math.max(1, parseInt(e.target.value) || 1))
+                }
+                style={{ width: 60, marginLeft: 8, padding: 4 }}
+              />
             </div>
             <button
+              onClick={handleAddToCart}
               style={{
                 borderRadius: 5,
                 padding: 20,
@@ -180,6 +230,9 @@ export default function Page() {
                 background: "rgba(127,127,127,0.62)",
                 marginTop: 60,
                 marginBottom: 60,
+                cursor: "pointer",
+                border: "none",
+                fontSize: 16,
               }}
             >
               Agregar al Carrito
@@ -192,8 +245,274 @@ export default function Page() {
         </div>
       </div>
       <div style={{ padding: 40 }}>You may also like</div>
-      <Scroll carouselItems={carouselItems} />
+      <Scroll carouselItems={products} />
     </>
+  );
+}
+//===== app/dashboard/page.js =====
+"use client";
+import { useState } from "react";
+import { useInventory } from "../../../vStore/inventory";
+export default function AdminDashboard() {
+  const {
+    products,
+    collections,
+    addProduct,
+    deleteProduct,
+    assignCollection,
+    addCollection,
+    deleteCollection,
+  } = useInventory();
+  const [newProductName, setNewProductName] = useState("");
+  const [newProductPrice, setNewProductPrice] = useState("");
+  const [newProductSrc, setNewProductSrc] = useState("");
+  const [newCollectionName, setNewCollectionName] = useState("");
+  const handleAddProduct = () => {
+    if (!newProductName) return;
+    addProduct({
+      id: Date.now().toString(),
+      name: newProductName,
+      price: parseFloat(newProductPrice) || 0,
+      src: newProductSrc || null,
+      variants: [],
+      collectionId: null,
+    });
+    setNewProductName("");
+    setNewProductPrice("");
+    setNewProductSrc("");
+  };
+  const handleAddCollection = () => {
+    if (!newCollectionName) return;
+    addCollection({
+      id: Date.now().toString(),
+      name: newCollectionName,
+      href: `/collections/${newCollectionName.toLowerCase().replace(/\s/g, "-")}`,
+      src: "",
+    });
+    setNewCollectionName("");
+  };
+  return (
+    <div
+      style={{
+        padding: "2rem",
+        fontFamily: "sans-serif",
+        maxWidth: 1200,
+        margin: "0 auto",
+      }}
+    >
+      <h1>Dashboard – Productos y Colecciones</h1>
+      <div style={{ display: "flex", gap: "2rem", flexWrap: "wrap" }}>
+        {/* Products section */}
+        <div style={{ flex: 2, minWidth: 300 }}>
+          <h2>Productos</h2>
+          <div
+            style={{
+              marginBottom: "1rem",
+              border: "1px solid #ccc",
+              padding: "1rem",
+              borderRadius: 8,
+            }}
+          >
+            <h3>➕ Agregar producto</h3>
+            <input
+              type="text"
+              placeholder="Nombre"
+              value={newProductName}
+              onChange={(e) => setNewProductName(e.target.value)}
+              style={{
+                display: "block",
+                marginBottom: 8,
+                width: "100%",
+                padding: 6,
+              }}
+            />
+            <input
+              type="number"
+              placeholder="Precio (COP)"
+              value={newProductPrice}
+              onChange={(e) => setNewProductPrice(e.target.value)}
+              style={{
+                display: "block",
+                marginBottom: 8,
+                width: "100%",
+                padding: 6,
+              }}
+            />
+            <input
+              type="text"
+              placeholder="URL de imagen"
+              value={newProductSrc}
+              onChange={(e) => setNewProductSrc(e.target.value)}
+              style={{
+                display: "block",
+                marginBottom: 8,
+                width: "100%",
+                padding: 6,
+              }}
+            />
+            <button
+              onClick={handleAddProduct}
+              style={{
+                background: "#0070f3",
+                color: "white",
+                padding: "6px 12px",
+                border: "none",
+                borderRadius: 4,
+              }}
+            >
+              Guardar producto
+            </button>
+          </div>
+          <table style={{ width: "100%", borderCollapse: "collapse" }}>
+            <thead>
+              <tr>
+                <th
+                  style={{
+                    textAlign: "left",
+                    borderBottom: "1px solid #ddd",
+                    padding: 8,
+                  }}
+                >
+                  Nombre
+                </th>
+                <th
+                  style={{
+                    textAlign: "left",
+                    borderBottom: "1px solid #ddd",
+                    padding: 8,
+                  }}
+                >
+                  Precio
+                </th>
+                <th
+                  style={{
+                    textAlign: "left",
+                    borderBottom: "1px solid #ddd",
+                    padding: 8,
+                  }}
+                >
+                  Colección
+                </th>
+                <th
+                  style={{
+                    textAlign: "left",
+                    borderBottom: "1px solid #ddd",
+                    padding: 8,
+                  }}
+                >
+                  Acciones
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {products.map((product) => (
+                <tr key={product.id}>
+                  <td style={{ padding: 8 }}>{product.name}</td>
+                  <td style={{ padding: 8 }}>
+                    ${product.price?.toLocaleString("es-CO")}
+                  </td>
+                  <td style={{ padding: 8 }}>
+                    <select
+                      value={product.collectionId || ""}
+                      onChange={(e) =>
+                        assignCollection(product.id, e.target.value || null)
+                      }
+                    >
+                      <option value="">-- Sin colección --</option>
+                      {collections.map((col) => (
+                        <option key={col.id} value={col.id}>
+                          {col.name}
+                        </option>
+                      ))}
+                    </select>
+                  </td>
+                  <td style={{ padding: 8 }}>
+                    <button
+                      onClick={() => deleteProduct(product.id)}
+                      style={{
+                        background: "#dc2626",
+                        color: "white",
+                        border: "none",
+                        padding: "4px 8px",
+                        borderRadius: 4,
+                      }}
+                    >
+                      Eliminar
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        {/* Collections section */}
+        <div style={{ flex: 1, minWidth: 250 }}>
+          <h2>Colecciones</h2>
+          <div
+            style={{
+              marginBottom: "1rem",
+              border: "1px solid #ccc",
+              padding: "1rem",
+              borderRadius: 8,
+            }}
+          >
+            <h3>➕ Agregar colección</h3>
+            <input
+              type="text"
+              placeholder="Nombre de colección"
+              value={newCollectionName}
+              onChange={(e) => setNewCollectionName(e.target.value)}
+              style={{
+                display: "block",
+                marginBottom: 8,
+                width: "100%",
+                padding: 6,
+              }}
+            />
+            <button
+              onClick={handleAddCollection}
+              style={{
+                background: "#0070f3",
+                color: "white",
+                padding: "6px 12px",
+                border: "none",
+                borderRadius: 4,
+              }}
+            >
+              Guardar colección
+            </button>
+          </div>
+          <ul style={{ listStyle: "none", padding: 0 }}>
+            {collections.map((col) => (
+              <li
+                key={col.id}
+                style={{
+                  borderBottom: "1px solid #eee",
+                  padding: "8px 0",
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                }}
+              >
+                <span>{col.name}</span>
+                <button
+                  onClick={() => deleteCollection(col.id)}
+                  style={{
+                    background: "#dc2626",
+                    color: "white",
+                    border: "none",
+                    padding: "2px 8px",
+                    borderRadius: 4,
+                  }}
+                >
+                  Eliminar
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </div>
+    </div>
   );
 }
 //===== app/collections/[slug]/page.js =====
@@ -201,7 +520,7 @@ export default function Page() {
 import { useMemo } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
-import { carouselItems } from "../../../vStore/inventory";
+import { products } from "../../../vStore/inventory";
 const mockProducts = [
   { id: 1, name: "Vestido Alma", price: "$2.100.000" },
   { id: 2, name: "Blusa Cielo", price: "$980.000" },
@@ -225,12 +544,12 @@ export default function CollectionPage() {
   const title = Array.isArray(slug)
     ? slug[0]
     : slug
-      .split("-")
-      .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-      .join(" ");
+        .split("-")
+        .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+        .join(" ");
   const shuffledImages = useMemo(() => {
-    if (!carouselItems?.length) return [];
-    return shuffleArray(carouselItems);
+    if (!products?.length) return [];
+    return shuffleArray(products);
   }, []);
   return (
     <>
@@ -447,12 +766,490 @@ export default function Scroll({ carouselItems }) {
     </div>
   );
 }
+//===== components/Cart.js =====
+"use client";
+import { useEffect, useState } from "react";
+import { products, collections } from "../vStore/inventory";
+const DEMO_ITEMS = [
+  {
+    id: "sabina-dress",
+    name: "Vestido Alma",
+    variant: "XS",
+    price: 2100000,
+    qty: 1,
+    src: null,
+  },
+  {
+    id: "rowan-dress",
+    name: "Blusa Cielo",
+    variant: "S",
+    price: 980000,
+    qty: 2,
+    src: null,
+  },
+];
+const fmt = (n) =>
+  new Intl.NumberFormat("es-CO", {
+    style: "currency",
+    currency: "COP",
+    maximumFractionDigits: 0,
+  }).format(n);
+function CartItem({ item, onQty, onRemove }) {
+  const product = products.find((product) => product.id == item.id);
+  return (
+    <div style={s.item}>
+      <div style={s.thumb}>
+        {product.src && (
+          <img
+            src={product.src}
+            alt={product.name}
+            style={{ width: "100%", height: "100%", objectFit: "cover" }}
+          />
+        )}
+      </div>
+      <div style={s.itemBody}>
+        <div style={s.itemTop}>
+          <span style={s.itemName}>{product.name}</span>
+          <span style={s.itemPrice}>{fmt(item.price * item.qty)}</span>
+        </div>
+        {item.variant && <span style={s.itemVariant}>{item.variant}</span>}
+        <div style={s.itemActions}>
+          <div style={s.stepper}>
+            <button
+              style={s.stepBtn}
+              onClick={() => onQty(item.id, item.qty - 1)}
+            >
+              −
+            </button>
+            <span style={s.qty}>{item.qty}</span>
+            <button
+              style={s.stepBtn}
+              onClick={() => onQty(item.id, item.qty + 1)}
+            >
+              +
+            </button>
+          </div>
+          <button style={s.removeBtn} onClick={() => onRemove(item.id)}>
+            Eliminar
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+export default function CartOverlay() {
+  const [open, setOpen] = useState(false);
+  const [items, setItems] = useState(DEMO_ITEMS);
+  const count = items.reduce((s, i) => s + i.qty, 0);
+  const subtotal = items.reduce((s, i) => s + i.price * i.qty, 0);
+  const setQty = (id, qty) => {
+    if (qty < 1) return;
+    setItems((prev) => prev.map((i) => (i.id === id ? { ...i, qty } : i)));
+  };
+  const removeItem = (id) =>
+    setItems((prev) => prev.filter((i) => i.id !== id));
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e) => e.key === "Escape" && setOpen(false);
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open]);
+  useEffect(() => {
+    document.body.style.overflow = open ? "hidden" : "";
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, [open]);
+  return (
+    <>
+      {/* floating toggle button */}
+      <button
+        onClick={() => setOpen((v) => !v)}
+        style={{ ...s.fab, ...(open ? s.fabOpen : {}) }}
+        aria-label="Carrito"
+      >
+        {open ? (
+          <span style={{ fontSize: 16, lineHeight: 1 }}>✕</span>
+        ) : (
+          <>
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z" />
+              <line x1="3" y1="6" x2="21" y2="6" />
+              <path d="M16 10a4 4 0 01-8 0" />
+            </svg>
+            {count > 0 && <span style={s.fabBadge}>{count}</span>}
+          </>
+        )}
+      </button>
+      {/* backdrop */}
+      <div
+        onClick={() => setOpen(false)}
+        style={{
+          ...s.backdrop,
+          opacity: open ? 1 : 0,
+          pointerEvents: open ? "auto" : "none",
+        }}
+      />
+      {/* drawer */}
+      <aside
+        style={{
+          ...s.drawer,
+          transform: open ? "translateX(0)" : "translateX(100%)",
+        }}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Carrito de compras"
+      >
+        <div style={s.head}>
+          <span style={s.title}>🛍️ Carrito</span>
+          {count > 0 && <span style={s.badge}>{count}</span>}
+          <button
+            style={s.closeBtn}
+            onClick={() => setOpen(false)}
+            aria-label="Cerrar"
+          >
+            ✕
+          </button>
+        </div>
+        <div style={s.body}>
+          {items.length === 0 ? (
+            <div style={s.empty}>
+              <svg
+                width="38"
+                height="38"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="rgba(127,127,127,0.5)"
+                strokeWidth="1"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z" />
+                <line x1="3" y1="6" x2="21" y2="6" />
+              </svg>
+              <p style={s.emptyText}>Tu carrito está vacío.</p>
+            </div>
+          ) : (
+            items.map((item) => (
+              <CartItem
+                key={item.id}
+                item={item}
+                onQty={setQty}
+                onRemove={removeItem}
+              />
+            ))
+          )}
+        </div>
+        {items.length > 0 && (
+          <div style={s.footer}>
+            <div style={s.subtotalRow}>
+              <span style={s.subtotalLabel}>Subtotal</span>
+              <span style={s.subtotalValue}>{fmt(subtotal)}</span>
+            </div>
+            <p style={s.taxNote}>Envío e impuestos calculados al finalizar</p>
+            <button style={s.checkoutBtn}>Finalizar Compra</button>
+            <button style={s.continueBtn} onClick={() => setOpen(false)}>
+              Seguir comprando
+            </button>
+          </div>
+        )}
+      </aside>
+    </>
+  );
+}
+const s = {
+  fab: {
+    position: "fixed",
+    bottom: 28,
+    right: 28,
+    zIndex: 100000,
+    width: 52,
+    height: 52,
+    borderRadius: "50%",
+    background: "rgba(10,10,10,0.92)",
+    backdropFilter: "blur(12px)",
+    border: "1px solid rgba(255,255,255,0.12)",
+    color: "#ededed",
+    cursor: "pointer",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    boxShadow: "0 4px 24px rgba(0,0,0,0.4)",
+    transition: "transform .2s ease, background .2s ease",
+    textShadow: "none",
+  },
+  fabOpen: {
+    background: "rgba(40,40,40,0.98)",
+    transform: "scale(0.92)",
+  },
+  fabBadge: {
+    position: "absolute",
+    top: 8,
+    right: 8,
+    minWidth: 16,
+    height: 16,
+    padding: "0 3px",
+    background: "#ededed",
+    color: "#111",
+    borderRadius: 999,
+    fontSize: 9,
+    fontFamily: "var(--font-geist-mono)",
+    fontWeight: 600,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    lineHeight: 1,
+    pointerEvents: "none",
+  },
+  backdrop: {
+    position: "fixed",
+    inset: 0,
+    zIndex: 99998,
+    background: "rgba(0,0,0,0.35)",
+    backdropFilter: "blur(3px)",
+    transition: "opacity .3s",
+  },
+  drawer: {
+    position: "fixed",
+    top: 0,
+    right: 0,
+    bottom: 0,
+    width: "min(420px, 100vw)",
+    zIndex: 99999,
+    background: "rgba(10,10,10,0.97)",
+    backdropFilter: "blur(20px)",
+    color: "#ededed",
+    display: "flex",
+    flexDirection: "column",
+    transition: "transform .38s cubic-bezier(.32,.72,0,1)",
+    borderLeft: "1px solid rgba(255,255,255,0.08)",
+    fontFamily: "var(--font-geist-sans)",
+  },
+  head: {
+    display: "flex",
+    alignItems: "center",
+    gap: 10,
+    padding: "18px 22px",
+    borderBottom: "1px solid rgba(255,255,255,0.07)",
+  },
+  title: {
+    flex: 1,
+    fontSize: 14,
+    fontWeight: 500,
+    letterSpacing: "0.08em",
+    textTransform: "uppercase",
+    color: "#ededed",
+  },
+  badge: {
+    fontFamily: "var(--font-geist-mono)",
+    fontSize: 10,
+    color: "rgba(200,200,200,0.7)",
+    padding: "2px 6px",
+    border: "1px solid rgba(255,255,255,0.12)",
+    borderRadius: 4,
+  },
+  closeBtn: {
+    background: "none",
+    border: "none",
+    cursor: "pointer",
+    color: "rgba(200,200,200,0.5)",
+    fontSize: 14,
+    padding: "2px 4px",
+    lineHeight: 1,
+    textShadow: "none",
+  },
+  body: { flex: 1, overflowY: "auto", padding: "0 22px" },
+  item: {
+    display: "flex",
+    gap: 14,
+    padding: "18px 0",
+    borderBottom: "1px solid rgba(255,255,255,0.06)",
+  },
+  thumb: {
+    width: 68,
+    height: 84,
+    flexShrink: 0,
+    background: "rgba(255,255,255,0.05)",
+    borderRadius: 4,
+    overflow: "hidden",
+  },
+  itemBody: { flex: 1, display: "flex", flexDirection: "column", gap: 4 },
+  itemTop: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+  },
+  itemName: {
+    fontSize: 13,
+    fontWeight: 400,
+    letterSpacing: "0.04em",
+    color: "#ededed",
+    lineHeight: 1.35,
+  },
+  itemPrice: {
+    fontFamily: "var(--font-geist-mono)",
+    fontSize: 12,
+    color: "#ededed",
+    flexShrink: 0,
+    marginLeft: 8,
+  },
+  itemVariant: {
+    fontSize: 11,
+    color: "rgba(200,200,200,0.45)",
+    letterSpacing: "0.04em",
+  },
+  itemActions: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginTop: 8,
+  },
+  stepper: {
+    display: "flex",
+    alignItems: "center",
+    border: "1px solid rgba(255,255,255,0.12)",
+    borderRadius: 3,
+    overflow: "hidden",
+  },
+  stepBtn: {
+    width: 28,
+    height: 26,
+    background: "none",
+    border: "none",
+    cursor: "pointer",
+    fontSize: 14,
+    color: "rgba(200,200,200,0.6)",
+    lineHeight: 1,
+    textShadow: "none",
+    padding: 0,
+  },
+  qty: {
+    width: 26,
+    textAlign: "center",
+    fontFamily: "var(--font-geist-mono)",
+    fontSize: 12,
+    color: "#ededed",
+    borderLeft: "1px solid rgba(255,255,255,0.12)",
+    borderRight: "1px solid rgba(255,255,255,0.12)",
+    lineHeight: "26px",
+  },
+  removeBtn: {
+    background: "none",
+    border: "none",
+    cursor: "pointer",
+    fontSize: 10,
+    color: "rgba(200,200,200,0.35)",
+    textDecoration: "underline",
+    padding: 0,
+    letterSpacing: "0.04em",
+    textShadow: "none",
+  },
+  empty: {
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 14,
+    height: 260,
+  },
+  emptyText: {
+    fontSize: 13,
+    color: "rgba(200,200,200,0.35)",
+    letterSpacing: "0.04em",
+  },
+  footer: {
+    padding: "18px 22px",
+    borderTop: "1px solid rgba(255,255,255,0.07)",
+  },
+  subtotalRow: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 5,
+  },
+  subtotalLabel: {
+    fontSize: 12,
+    color: "rgba(200,200,200,0.5)",
+    letterSpacing: "0.06em",
+    textTransform: "uppercase",
+  },
+  subtotalValue: {
+    fontFamily: "var(--font-geist-mono)",
+    fontSize: 15,
+    fontWeight: 500,
+    color: "#ededed",
+  },
+  taxNote: {
+    fontSize: 10,
+    color: "rgba(200,200,200,0.3)",
+    marginBottom: 14,
+    letterSpacing: "0.02em",
+  },
+  checkoutBtn: {
+    width: "100%",
+    height: 44,
+    background: "#ededed",
+    color: "#0a0a0a",
+    border: "none",
+    borderRadius: 3,
+    fontSize: 12,
+    fontWeight: 500,
+    cursor: "pointer",
+    letterSpacing: "0.1em",
+    textTransform: "uppercase",
+    marginBottom: 8,
+    textShadow: "none",
+    fontFamily: "var(--font-geist-sans)",
+  },
+  continueBtn: {
+    width: "100%",
+    height: 38,
+    background: "none",
+    color: "rgba(200,200,200,0.45)",
+    border: "1px solid rgba(255,255,255,0.1)",
+    borderRadius: 3,
+    fontSize: 11,
+    cursor: "pointer",
+    letterSpacing: "0.06em",
+    textTransform: "uppercase",
+    fontFamily: "var(--font-geist-sans)",
+    textShadow: "none",
+  },
+};
+//===== components/LayoutWrapper.js =====
+"use client";
+import { usePathname } from "next/navigation";
+import Top from "./Top";
+import Bottom from "./Bottom";
+import CartOverlay from "./Cart";
+export default function LayoutWrapper({ children }) {
+  const pathname = usePathname();
+  // Hide global elements on any route that contains "/dashboard"
+  const isDashboard = pathname?.includes("/dashboard");
+  return (
+    <>
+      {!isDashboard && <CartOverlay />}
+      {!isDashboard && <Top />}
+      {children}
+      {!isDashboard && <Bottom />}
+    </>
+  );
+}
 //===== components/Top.js =====
 "use client";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 const leftItems = ["Comprar", "Colecciones", "Novias", "Más"];
-const rightItems = ["Buscar", "Carrito"];
+const rightItems = ["🔎", "Carrito"];
 export default function Top() {
   const router = useRouter();
   const topbarRef = useRef(null);
@@ -529,7 +1326,7 @@ export default function Top() {
           top: 0,
           zIndex: 2000,
           width: "100%",
-          background: "rgba(127,127,127,0.72)",
+          background: "rgba(72,72,72,0.62)",
           backdropFilter: "blur(14px)",
           boxShadow: "0 4px 24px rgba(0,0,0,0.35)",
         }}
@@ -650,7 +1447,7 @@ export default function Top() {
           left: 0,
           right: 0,
           zIndex: 1500,
-          background: "rgba(0,0,0,0.94)",
+          background: "rgba(72,72,72,0.62)",
           backdropFilter: "blur(18px)",
           color: "#fff",
           overflow: "hidden",
@@ -684,7 +1481,7 @@ export default function Top() {
             left: 0,
             right: 0,
             zIndex: 1500,
-            background: "rgba(0,0,0,0.94)",
+            background: "rgba(200,200,200,0.62)",
             backdropFilter: "blur(18px)",
             color: "#fff",
             overflow: "hidden",
@@ -836,10 +1633,150 @@ export default function Top() {
     </>
   );
 }
+//===== components/Top_legacy.js =====
+"use client";
+import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
+const menuItems = ["Comprar", "Colecciones", "Novias", "Más", "Boutiques"];
+export default function Top() {
+  const router = useRouter();
+  const topbarRef = useRef(null);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isCartOpen, setIsCartOpen] = useState(false);
+  const [topbarHeight, setTopbarHeight] = useState(0);
+  useEffect(() => {
+    const updateHeight = () => {
+      if (topbarRef.current) {
+        setTopbarHeight(topbarRef.current.offsetHeight);
+      }
+    };
+    updateHeight();
+    window.addEventListener("resize", updateHeight);
+    return () => {
+      window.removeEventListener("resize", updateHeight);
+    };
+  }, []);
+  useEffect(() => {
+    const handleScroll = () => {
+      if (window.scrollY > 80 && isMenuOpen) {
+        setIsMenuOpen(false);
+      }
+    };
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => {
+      window.removeEventListener("scroll", handleScroll);
+    };
+  }, [isMenuOpen]);
+  return (
+    <>
+      {/* TOPBAR */}
+      <div
+        ref={topbarRef}
+        style={{
+          position: "sticky",
+          top: 0,
+          zIndex: 2000,
+          padding: "15px 20px",
+          display: "flex",
+          alignItems: "center",
+          width: "100%",
+          background: "rgba(0,0,0,0.72)",
+          backdropFilter: "blur(14px)",
+          color: "#fff",
+          boxShadow: "0 4px 24px rgba(0,0,0,0.35)",
+        }}
+      >
+        <button
+          onClick={() => setIsMenuOpen((v) => !v)}
+          style={{
+            color: "inherit",
+            fontWeight: 600,
+          }}
+        >
+          Menu
+        </button>
+        <b
+          style={{
+            flex: 1,
+            textAlign: "center",
+            cursor: "pointer",
+            letterSpacing: "0.08em",
+            fontWeight: 700,
+            textShadow: "0 1px 4px rgba(0,0,0,0.45)",
+          }}
+          onClick={() => router.push("/")}
+        >
+          ASHERALEPH
+        </b>
+        <button
+          onClick={() => setIsCartOpen((v) => !v)}
+          style={{
+            color: "inherit",
+            fontWeight: 600,
+          }}
+        >
+          Carrito
+        </button>
+      </div>
+      {/* MENU OVERLAY */}
+      <div
+        style={{
+          position: "fixed",
+          top: topbarHeight - 1,
+          left: 0,
+          right: 0,
+          zIndex: 1500,
+          background: "rgba(0,0,0,0.94)",
+          backdropFilter: "blur(18px)",
+          color: "#fff",
+          overflow: "hidden",
+          opacity: isMenuOpen ? 1 : 0,
+          transform: isMenuOpen ? "translateY(0px)" : "translateY(-18px)",
+          pointerEvents: isMenuOpen ? "auto" : "none",
+          transition: "opacity 0.35s ease, transform 0.35s ease",
+          boxShadow: "0 14px 40px rgba(0,0,0,0.45)",
+        }}
+      >
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            minHeight: "300px",
+          }}
+        >
+          {menuItems.map((item) => (
+            <div
+              key={item}
+              className="menuItem"
+              onClick={() => setIsMenuOpen(false)}
+            >
+              {item}
+            </div>
+          ))}
+        </div>
+      </div>
+    </>
+  );
+}
 //===== components/Bottom.js =====
 export default function Bottom() {
   return (
     <>
+      <div
+        style={{
+          width: "100%",
+          padding: 5,
+          position: "sticky",
+          top: "var(--topbar-height, 0px)",
+          zIndex: 99,
+          background: "rgba(127,127,127,0.72)",
+          backdropFilter: "blur(7px)",
+          boxShadow: "0 4px 24px rgba(0,0,0,0.35)",
+          textShadow: "0 1px 4px rgba(0,0,0,0.45)",
+        }}
+      >
+        ASHERALEPH
+      </div>
       <div className="image-container">
         <img src="https://co.silviatcherassi.com/cdn/shop/files/ST_d8f2e597-969e-4663-a915-a59d6f3d51c1.png?v=1759248174&width=1500" />
         <img src="https://co.silviatcherassi.com/cdn/shop/files/Sofia_Tennis_Bag.jpg?v=1775766367&width=1500" />
@@ -1148,3 +2085,214 @@ a.secondary {
     --button-secondary-border: #1a1a1a;
   }
 }
+//===== vStore/inventoryStore.js =====
+"use client";
+import { proxy, useSnapshot } from "valtio";
+// ----- Default data (seed) -----
+const defaultProducts = [
+  {
+    id: "sabina-dress",
+    name: "Sabina Dress",
+    src: "https://co.silviatcherassi.com/cdn/shop/files/91_SabinaDress_White__PRESPRING2026_FRONT.jpg?v=1771536063&width=1000",
+    price: 2100000,
+    variants: [],
+    collectionId: null,
+  },
+  {
+    id: "rowan-dress",
+    name: "Rowan Dress",
+    src: "https://co.silviatcherassi.com/cdn/shop/files/89_RowanDress_White__PRESPRING2026_FRONT.jpg?v=1771535925&width=1000",
+    price: 2100000,
+    variants: [],
+    collectionId: null,
+  },
+  {
+    id: "norma-dress",
+    name: "Norma Dress",
+    src: "https://co.silviatcherassi.com/cdn/shop/files/80___Norma_Dress___Vanilla___PRE_SPRING_2026_FRONT_4b5ba98e-1241-4ad1-a9e1-05181b9a069e.jpg?v=1757978129&width=1000",
+    price: 2100000,
+    variants: [],
+    collectionId: null,
+  },
+  {
+    id: "naga-dress",
+    name: "Naga Dress",
+    src: "https://co.silviatcherassi.com/cdn/shop/files/55___Naga_Dress___Tangerine___PRE_SPRING_2026_FRONT.jpg?v=1757883456&width=1000",
+    price: 2100000,
+    variants: [],
+    collectionId: null,
+  },
+  {
+    id: "asher-dress",
+    name: "Asher Dress",
+    src: null,
+    price: 2100000,
+    variants: [],
+    collectionId: null,
+  },
+];
+const defaultCollections = [
+  {
+    id: "col1",
+    name: "Collection 1",
+    href: "/collections/collection-1",
+    src: "https://co.silviatcherassi.com/cdn/shop/files/1402-3_1.jpg?v=1775769358&width=1500",
+  },
+  {
+    id: "col2",
+    name: "Collection 2",
+    href: "/collections/collection-2",
+    src: "https://co.silviatcherassi.com/cdn/shop/files/2_f3b3831b-f41c-4f32-8a48-d5b3c045bac4.jpg?v=1775754993&width=1500",
+  },
+  {
+    id: "col3",
+    name: "Collection 3",
+    href: "/collections/collection-3",
+    src: "https://co.silviatcherassi.com/cdn/shop/files/SPRING_2026_-_HERO_IMAGES_13_b2600db3-62f4-4632-b8e2-b433de7b77ee.jpg?v=1775489708&width=1500",
+  },
+  {
+    id: "col4",
+    name: "Collection 4",
+    href: "/collections/collection-4",
+    src: "https://co.silviatcherassi.com/cdn/shop/files/SPRING_2026_-_HERO_IMAGES_19_e3e6e248-ee80-432f-a4be-114ceebf414b.jpg?v=1775489710&width=832",
+  },
+];
+// ----- Load persisted data from localStorage (for dynamic updates) -----
+const loadData = () => {
+  if (typeof window === "undefined")
+    return { products: defaultProducts, collections: defaultCollections };
+  const storedProducts = localStorage.getItem("inventory_products");
+  const storedCollections = localStorage.getItem("inventory_collections");
+  return {
+    products: storedProducts ? JSON.parse(storedProducts) : defaultProducts,
+    collections: storedCollections
+      ? JSON.parse(storedCollections)
+      : defaultCollections,
+  };
+};
+const { products: initialProducts, collections: initialCollections } =
+  loadData();
+// ----- Valtio proxy state -----
+const store = proxy({
+  products: initialProducts,
+  collections: initialCollections,
+});
+// ----- Persist helper (saves to localStorage after each mutation) -----
+const persist = () => {
+  if (typeof window !== "undefined") {
+    localStorage.setItem("inventory_products", JSON.stringify(store.products));
+    localStorage.setItem(
+      "inventory_collections",
+      JSON.stringify(store.collections),
+    );
+  }
+};
+// ----- Actions (mutate the proxy directly) -----
+export const inventoryActions = {
+  addProduct(product) {
+    store.products.push(product);
+    persist();
+  },
+  updateProduct(id, updates) {
+    const product = store.products.find((p) => p.id === id);
+    if (product) Object.assign(product, updates);
+    persist();
+  },
+  deleteProduct(id) {
+    const index = store.products.findIndex((p) => p.id === id);
+    if (index !== -1) store.products.splice(index, 1);
+    persist();
+  },
+  assignCollection(productId, collectionId) {
+    const product = store.products.find((p) => p.id === productId);
+    if (product) product.collectionId = collectionId || null;
+    persist();
+  },
+  addCollection(collection) {
+    store.collections.push(collection);
+    persist();
+  },
+  updateCollection(id, updates) {
+    const collection = store.collections.find((c) => c.id === id);
+    if (collection) Object.assign(collection, updates);
+    persist();
+  },
+  deleteCollection(id) {
+    // Remove reference from all products
+    store.products.forEach((p) => {
+      if (p.collectionId === id) p.collectionId = null;
+    });
+    const index = store.collections.findIndex((c) => c.id === id);
+    if (index !== -1) store.collections.splice(index, 1);
+    persist();
+  },
+};
+// ----- Helper to get a single product (reactive if used inside useSnapshot) -----
+export const getItemById = (id) =>
+  store.products.find((p) => p.id === id) ?? null;
+// ----- Custom hook for React components -----
+export function useInventory() {
+  const snap = useSnapshot(store);
+  return {
+    products: snap.products,
+    collections: snap.collections,
+    ...inventoryActions,
+    getItemById: (id) => snap.products.find((p) => p.id === id) ?? null,
+  };
+}
+//===== vStore/cartStore.js =====
+"use client";
+import { proxy, useSnapshot } from "valtio";
+const cartState = proxy({
+  items: [],
+});
+export const cartActions = {
+  addItem(product, variant, qty = 1) {
+    const existing = cartState.items.find(
+      (i) => i.id === product.id && i.variant === variant,
+    );
+    if (existing) {
+      existing.qty += qty;
+    } else {
+      cartState.items.push({
+        id: product.id,
+        variant: variant || null,
+        price: product.price,
+        qty,
+      });
+    }
+  },
+  updateQty(id, variant, newQty) {
+    if (newQty < 1) return;
+    const item = cartState.items.find(
+      (i) => i.id === id && i.variant === variant,
+    );
+    if (item) item.qty = newQty;
+  },
+  removeItem(id, variant) {
+    const index = cartState.items.findIndex(
+      (i) => i.id === id && i.variant === variant,
+    );
+    if (index !== -1) cartState.items.splice(index, 1);
+  },
+  clearCart() {
+    cartState.items = [];
+  },
+};
+export function useCart() {
+  const snap = useSnapshot(cartState);
+  const count = snap.items.reduce((sum, i) => sum + i.qty, 0);
+  const subtotal = snap.items.reduce((sum, i) => sum + i.price * i.qty, 0);
+  return {
+    items: snap.items,
+    count,
+    subtotal,
+    addItem: cartActions.addItem,
+    updateQty: cartActions.updateQty,
+    removeItem: cartActions.removeItem,
+    clearCart: cartActions.clearCart,
+  };
+}
+//===== vStore/inventory.js =====
+"use client";
+export { useInventory, getItemById, inventoryActions } from "./inventoryStore";
