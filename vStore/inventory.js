@@ -1,4 +1,4 @@
-export const carouselItems = [
+export const products = [
   {
     id: "sabina-dress",
     name: "Sabina Dress",
@@ -7,7 +7,7 @@ export const carouselItems = [
   {
     id: "rowan-dress",
     name: "Rowan Dress",
-    src: "//co.silviatcherassi.com/cdn/shop/files/89_RowanDress_White__PRESPRING2026_FRONT.jpg?v=1771535925&width=1000",
+    src: "https://co.silviatcherassi.com/cdn/shop/files/89_RowanDress_White__PRESPRING2026_FRONT.jpg?v=1771535925&width=1000",
   },
   {
     id: "norma-dress",
@@ -49,5 +49,5 @@ export const collections = [
 ];
 
 export function getItemById(id) {
-  return carouselItems.find((item) => item.id === id) ?? null;
+  return products.find((item) => item.id === id) ?? null;
 }

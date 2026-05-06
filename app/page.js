@@ -3,7 +3,7 @@ import { useEffect, useRef } from "react";
 import styles from "./page.module.css";
 import Link from "next/link";
 import Scroll from "../components/Scroll";
-import { carouselItems, collections } from "../vStore/inventory";
+import { products, collections } from "../vStore/inventory";
 
 const LABEL_H = 46;
 const MARGIN = 16;
@@ -41,6 +41,21 @@ export default function Home() {
   return (
     <div className={styles.page}>
       <main className={styles.main}>
+        <div
+          style={{
+            width: "100%",
+            padding: 5,
+            position: "sticky",
+            top: "var(--topbar-height, 0px)",
+            zIndex: 99,
+            background: "rgba(127,127,127,0.72)",
+            backdropFilter: "blur(7px)",
+            boxShadow: "0 4px 24px rgba(0,0,0,0.35)",
+            textShadow: "0 1px 4px rgba(0,0,0,0.45)",
+          }}
+        >
+          Colecciones
+        </div>
         <section className="collectionGrid">
           {collections.map((item, i) => (
             <div
@@ -67,7 +82,23 @@ export default function Home() {
             </div>
           ))}
         </section>
-        <Scroll carouselItems={carouselItems} />
+
+        <div
+          style={{
+            width: "100%",
+            padding: 5,
+            position: "sticky",
+            top: "var(--topbar-height, 0px)",
+            zIndex: 99,
+            background: "rgba(127,127,127,0.72)",
+            backdropFilter: "blur(7px)",
+            boxShadow: "0 4px 24px rgba(0,0,0,0.35)",
+            textShadow: "0 1px 4px rgba(0,0,0,0.45)",
+          }}
+        >
+          Comprar
+        </div>
+        <Scroll carouselItems={products} />
       </main>
       <style jsx global>{`
         .collectionGrid {

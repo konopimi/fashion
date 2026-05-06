@@ -3,7 +3,7 @@
 import { useParams } from "next/navigation";
 
 import Scroll from "../../../components/Scroll";
-import { carouselItems, getItemById } from "../../../vStore/inventory";
+import { products, getItemById } from "../../../vStore/inventory";
 export default function Page() {
   const params = useParams();
   const id = Array.isArray(params.id) ? params.id[0] : params.id;
@@ -45,7 +45,7 @@ export default function Page() {
         </div>
       </div>
       <div style={{ padding: 40 }}>You may also like</div>
-      <Scroll carouselItems={carouselItems} />
+      <Scroll carouselItems={products} />
     </>
   );
 }

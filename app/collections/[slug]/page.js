@@ -3,7 +3,7 @@
 import { useMemo } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
-import { carouselItems } from "../../../vStore/inventory";
+import { products } from "../../../vStore/inventory";
 
 const mockProducts = [
   { id: 1, name: "Vestido Alma", price: "$2.100.000" },
@@ -31,13 +31,13 @@ export default function CollectionPage() {
   const title = Array.isArray(slug)
     ? slug[0]
     : slug
-      .split("-")
-      .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-      .join(" ");
+        .split("-")
+        .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+        .join(" ");
 
   const shuffledImages = useMemo(() => {
-    if (!carouselItems?.length) return [];
-    return shuffleArray(carouselItems);
+    if (!products?.length) return [];
+    return shuffleArray(products);
   }, []);
 
   return (

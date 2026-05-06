@@ -1,9 +1,10 @@
 "use client";
 import { useEffect, useState } from "react";
 
+import { products, collections } from "../vStore/inventory";
 const DEMO_ITEMS = [
   {
-    id: 1,
+    id: "sabina-dress",
     name: "Vestido Alma",
     variant: "XS",
     price: 2100000,
@@ -11,7 +12,7 @@ const DEMO_ITEMS = [
     src: null,
   },
   {
-    id: 2,
+    id: "rowan-dress",
     name: "Blusa Cielo",
     variant: "S",
     price: 980000,
@@ -28,20 +29,21 @@ const fmt = (n) =>
   }).format(n);
 
 function CartItem({ item, onQty, onRemove }) {
+  const product = products.find((product) => product.id == item.id);
   return (
     <div style={s.item}>
       <div style={s.thumb}>
-        {item.src && (
+        {product.src && (
           <img
-            src={item.src}
-            alt={item.name}
+            src={product.src}
+            alt={product.name}
             style={{ width: "100%", height: "100%", objectFit: "cover" }}
           />
         )}
       </div>
       <div style={s.itemBody}>
         <div style={s.itemTop}>
-          <span style={s.itemName}>{item.name}</span>
+          <span style={s.itemName}>{product.name}</span>
           <span style={s.itemPrice}>{fmt(item.price * item.qty)}</span>
         </div>
         {item.variant && <span style={s.itemVariant}>{item.variant}</span>}
@@ -151,7 +153,7 @@ export default function CartOverlay() {
         aria-label="Carrito de compras"
       >
         <div style={s.head}>
-          <span style={s.title}>Carrito</span>
+          <span style={s.title}>🛍️ Carrito</span>
           {count > 0 && <span style={s.badge}>{count}</span>}
           <button
             style={s.closeBtn}

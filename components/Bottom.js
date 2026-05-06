@@ -1,6 +1,21 @@
 export default function Bottom() {
   return (
     <>
+      <div
+        style={{
+          width: "100%",
+          padding: 5,
+          position: "sticky",
+          top: "var(--topbar-height, 0px)",
+          zIndex: 99,
+          background: "rgba(127,127,127,0.72)",
+          backdropFilter: "blur(7px)",
+          boxShadow: "0 4px 24px rgba(0,0,0,0.35)",
+          textShadow: "0 1px 4px rgba(0,0,0,0.45)",
+        }}
+      >
+        ASHERALEPH
+      </div>
       <div className="image-container">
         <img src="https://co.silviatcherassi.com/cdn/shop/files/ST_d8f2e597-969e-4663-a915-a59d6f3d51c1.png?v=1759248174&width=1500" />
         <img src="https://co.silviatcherassi.com/cdn/shop/files/Sofia_Tennis_Bag.jpg?v=1775766367&width=1500" />
