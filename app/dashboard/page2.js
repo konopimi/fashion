@@ -35,9 +35,6 @@ export default function AdminDashboard() {
   const [modalOpen, setModalOpen] = useState(false);
   const [modalType, setModalType] = useState("product"); // 'product' | 'collection'
 
-  // ----- Image preview state -----
-  const [previewImage, setPreviewImage] = useState(null); // stores image src
-
   // ----- Product form state -----
   const [newProductName, setNewProductName] = useState("");
   const [newProductPrice, setNewProductPrice] = useState("");
@@ -132,12 +129,6 @@ export default function AdminDashboard() {
   const handleDeleteProduct = (id) => deleteProduct(id);
   const handleDeleteCollection = (id) => deleteCollection(id);
 
-  // Image preview handlers
-  const openImagePreview = (src) => {
-    if (src) setPreviewImage(src);
-  };
-  const closeImagePreview = () => setPreviewImage(null);
-
   // ----- Styles -----
   const s = {
     topbar: {
@@ -147,6 +138,8 @@ export default function AdminDashboard() {
       alignItems: "center",
       justifyContent: "space-between",
       fontSize: 14,
+      position: "sticky",
+      top: 0,
     },
     tabBar: {
       display: "flex",
@@ -185,48 +178,6 @@ export default function AdminDashboard() {
       padding: "2rem",
       width: "min(400px, 90vw)",
       boxShadow: "0 8px 30px rgba(0,0,0,0.15)",
-    },
-    // Image preview specific styles
-    imagePreviewBackdrop: {
-      position: "fixed",
-      inset: 0,
-      background: "rgba(0,0,0,0.85)",
-      backdropFilter: "blur(8px)",
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-      zIndex: 1100, // higher than regular modals
-    },
-    imagePreviewCard: {
-      position: "relative",
-      maxWidth: "90vw",
-      maxHeight: "90vh",
-      background: "transparent",
-      boxShadow: "none",
-    },
-    previewImage: {
-      width: "100%",
-      height: "100%",
-      objectFit: "contain",
-      borderRadius: 4,
-    },
-    imagePreviewClose: {
-      position: "absolute",
-      top: -48,
-      right: -48,
-      background: "rgba(0,0,0,0.6)",
-      color: "white",
-      border: "none",
-      fontSize: 24,
-      cursor: "pointer",
-      borderRadius: "50%",
-      width: 40,
-      height: 40,
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-      zIndex: 1101,
-      transition: "background 0.2s",
     },
     input: {
       display: "block",
@@ -270,6 +221,7 @@ export default function AdminDashboard() {
     },
     td: {
       padding: 8,
+      borderBottom: "1px solid #eee",
       verticalAlign: "middle",
     },
     thumbnail: {
@@ -278,8 +230,6 @@ export default function AdminDashboard() {
       objectFit: "cover",
       borderRadius: 4,
       background: "#f0f0f0",
-      cursor: "pointer",
-      transition: "opacity 0.2s",
     },
     searchInput: {
       marginBottom: "1rem",
@@ -433,10 +383,6 @@ export default function AdminDashboard() {
                                 src={product.src}
                                 alt={product.name}
                                 style={s.thumbnail}
-                                onClick={(e) => {
-                                  e.stopPropagation(); // prevent row edit
-                                  openImagePreview(product.src);
-                                }}
                               />
                             ) : (
                               <div style={s.thumbnail} />
@@ -566,7 +512,7 @@ export default function AdminDashboard() {
         )}
       </div>
 
-      {/* ----- Modal for new product/collection (unchanged) ----- */}
+      {/* ----- Modal (overlay) ----- */}
       {modalOpen && (
         <div style={s.modalBackdrop} onClick={closeModal}>
           <div style={s.modalCard} onClick={(e) => e.stopPropagation()}>
@@ -618,6 +564,7 @@ export default function AdminDashboard() {
                   onChange={(e) => setNewProductSrc(e.target.value)}
                   style={s.input}
                 />
+                {/* ---- IMAGE PREVIEW (product) ---- */}
                 {newProductSrc && (
                   <img
                     src={newProductSrc}
@@ -667,6 +614,7 @@ export default function AdminDashboard() {
                   onChange={(e) => setNewCollectionSrc(e.target.value)}
                   style={s.input}
                 />
+                {/* ---- IMAGE PREVIEW (collection) ---- */}
                 {newCollectionSrc && (
                   <img
                     src={newCollectionSrc}
@@ -703,23 +651,8 @@ export default function AdminDashboard() {
         </div>
       )}
 
-      {/* ----- Image Preview Modal ----- */}
-      {previewImage && (
-        <div style={s.imagePreviewBackdrop} onClick={closeImagePreview}>
-          <div style={s.imagePreviewCard} onClick={(e) => e.stopPropagation()}>
-            <button style={s.imagePreviewClose} onClick={closeImagePreview}>
-              ✕
-            </button>
-            <img src={previewImage} alt="Vista previa" style={s.previewImage} />
-          </div>
-        </div>
-      )}
-
       {/* responsive table for mobile */}
       <style jsx global>{`
-        tr {
-          border-bottom: 2px solid silver;
-        }
         @media (max-width: 600px) {
           table,
           thead,
@@ -729,9 +662,6 @@ export default function AdminDashboard() {
           tr {
             display: block;
           }
-          tr {
-            border-bottom: 2px solid silver;
-          }
           thead tr {
             display: none;
           }
@@ -739,6 +669,14 @@ export default function AdminDashboard() {
             display: flex;
             justify-content: space-between;
             padding: 10px 8px;
+            border-bottom: 1px solid #f0f0f0;
+          }
+          td::before {
+            content: attr(data-label);
+            font-weight: 500;
+            margin-right: 8px;
+            color: #555;
+            font-size: 13px;
           }
         }
       `}</style>

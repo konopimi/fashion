@@ -1439,21 +1439,21 @@ function CartItem({ item, product, onQty, onRemove }) {
           <div style={s.stepper}>
             <button
               style={s.stepBtn}
-              onClick={() => onQty(item._id, item.variant, item.qty - 1)}
+              onClick={() => onQty(item.handle, item.variant, item.qty - 1)}
             >
               −
             </button>
             <span style={s.qty}>{item.qty}</span>
             <button
               style={s.stepBtn}
-              onClick={() => onQty(item._id, item.variant, item.qty + 1)}
+              onClick={() => onQty(item.handle, item.variant, item.qty + 1)}
             >
               +
             </button>
           </div>
           <button
             style={s.removeBtn}
-            onClick={() => onRemove(item._id, item.variant)}
+            onClick={() => onRemove(item.handle, item.variant)}
           >
             Eliminar
           </button>
@@ -1488,7 +1488,7 @@ export default function CartOverlay() {
     const map = {};
     (products || []).forEach((p) => {
       // Asumimos que cada producto tiene un campo _id que coincide con item._id del carrito
-      map[p._id] = p;
+      map[p.handle] = p;
     });
     return map;
   }, [products]);
@@ -1511,7 +1511,7 @@ export default function CartOverlay() {
     let message = "🛍️ *Nuevo Pedido*%0A%0A";
     message += `📞 *Teléfono del cliente:* ${cleaned}%0A%0A`;
     items.forEach((item, idx) => {
-      const product = productMap[item._id];
+      const product = productMap[item.handle];
       if (!product) return;
       const variantText = item.variant ? ` (${item.variant})` : "";
       const itemPrice = fmt(item.price * item.qty);
@@ -1599,11 +1599,11 @@ export default function CartOverlay() {
               <p style={s.emptyText}>Tu carrito está vacío.</p>
             </div>
           ) : (
-            items.map((item) => (
+            items.map((item, index) => (
               <CartItem
-                key={`${item._id}-${item.variant ?? "novariant"}`}
+                key={`${item.handle}-${item.variant ?? "novariant"}-${index}`}
                 item={item}
-                product={productMap[item._id]}
+                product={productMap[item.handle]}
                 onQty={updateQty}
                 onRemove={removeItem}
               />
