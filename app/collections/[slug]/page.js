@@ -3,7 +3,7 @@
 import { useMemo } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
-import { useInventory } from "../../../vStore/inventoryStore";
+import { useAssets } from "../../../vStore/CORE/assets";
 
 const fmtPrice = (price) =>
   new Intl.NumberFormat("es-CO", {
@@ -14,7 +14,7 @@ const fmtPrice = (price) =>
 
 export default function CollectionPage() {
   const { slug } = useParams();
-  const { products } = useInventory(); // real products
+  const { products } = useAssets(); // real products
 
   const title = Array.isArray(slug)
     ? slug[0]
@@ -56,8 +56,8 @@ export default function CollectionPage() {
       <div className="mosaicGrid">
         {shuffledProducts.map((product) => (
           <Link
-            key={product.id}
-            href={`/prod/${product.id}`}
+            key={product._id} // still good
+            href={`/prod/${product.handle}`} // navigate with handle
             className="mosaicCard"
           >
             <div className="mosaicImgWrapper">

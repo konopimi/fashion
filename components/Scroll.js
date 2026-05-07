@@ -1,10 +1,14 @@
 "use client";
-import { useEffect, useRef } from "react";
+
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
-export default function Scroll({ carouselItems }) {
+export default function Scroll({ carouselItems = [] }) {
+  const [mounted, setMounted] = useState(false);
+
   const scrollRef = useRef(null);
   const router = useRouter();
+
   const dragRef = useRef({
     isDown: false,
     moved: false,
@@ -15,20 +19,29 @@ export default function Scroll({ carouselItems }) {
   });
 
   useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (!mounted) return;
+
     const el = scrollRef.current;
     if (!el) return;
 
     const endDrag = () => {
       const { pointerId, moved, target } = dragRef.current;
+
       dragRef.current.isDown = false;
 
       if (pointerId !== null && el.hasPointerCapture?.(pointerId)) {
         el.releasePointerCapture(pointerId);
       }
+
       dragRef.current.pointerId = null;
 
       if (!moved && target) {
         const itemEl = target.closest("[data-item-id]");
+
         if (itemEl) {
           router.push(`/prod/${itemEl.dataset.itemId}`);
         }
@@ -45,13 +58,19 @@ export default function Scroll({ carouselItems }) {
       dragRef.current.scrollLeft = el.scrollLeft;
       dragRef.current.pointerId = e.pointerId;
       dragRef.current.target = e.target;
+
       el.setPointerCapture(e.pointerId);
     };
 
     const onPointerMove = (e) => {
       if (!dragRef.current.isDown) return;
+
       const dx = e.clientX - dragRef.current.startX;
-      if (Math.abs(dx) > 5) dragRef.current.moved = true;
+
+      if (Math.abs(dx) > 5) {
+        dragRef.current.moved = true;
+      }
+
       el.scrollLeft = dragRef.current.scrollLeft - dx;
     };
 
@@ -68,7 +87,12 @@ export default function Scroll({ carouselItems }) {
       el.removeEventListener("pointercancel", endDrag);
       el.removeEventListener("lostpointercapture", endDrag);
     };
-  }, []);
+  }, [mounted, router]);
+
+  // Prevent hydration mismatch
+  if (!mounted) {
+    return null;
+  }
 
   return (
     <div
@@ -84,9 +108,13 @@ export default function Scroll({ carouselItems }) {
       <div style={{ display: "flex" }}>
         {carouselItems.map((item) => (
           <div
-            key={item.id}
-            data-item-id={item.id}
-            style={{ overflow: "hidden", minWidth: "300px", cursor: "pointer" }}
+            key={item._id} // React key is fine with _id
+            data-item-id={item.handle} // use handle for the link
+            style={{
+              overflow: "hidden",
+              minWidth: "300px",
+              cursor: "pointer",
+            }}
           >
             <div className="carousel-img-wrapper">
               <img
@@ -100,6 +128,7 @@ export default function Scroll({ carouselItems }) {
                 alt={item.name}
               />
             </div>
+
             <div style={{ padding: 20, pointerEvents: "none" }}>
               {item.name}
             </div>

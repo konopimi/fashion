@@ -1,13 +1,15 @@
 //===== app/page.js =====
+// app/page.js
 "use client";
 import { useEffect, useRef } from "react";
 import styles from "./page.module.css";
 import Link from "next/link";
 import Scroll from "../components/Scroll";
-import { products, collections } from "../vStore/inventory";
+import { useAssets } from "../vStore/CORE/assets";
 const LABEL_H = 46;
 const MARGIN = 16;
 export default function Home() {
+  const { products, collections } = useAssets(); // <-- reactive data
   const cardRefs = useRef([]);
   const labelRefs = useRef([]);
   useEffect(() => {
@@ -55,7 +57,7 @@ export default function Home() {
         <section className="collectionGrid">
           {collections.map((item, i) => (
             <div
-              key={item.title}
+              key={item._id}
               ref={(el) => (cardRefs.current[i] = el)}
               className="collectionCard"
             >
@@ -65,7 +67,7 @@ export default function Home() {
               >
                 <img
                   src={item.src}
-                  alt={item.title}
+                  alt={item.name || item.title}
                   className="collectionImage"
                 />
               </Link>
@@ -73,7 +75,7 @@ export default function Home() {
                 ref={(el) => (labelRefs.current[i] = el)}
                 className="collectionLabel"
               >
-                {item.title}
+                {item.name || item.title}
               </div>
             </div>
           ))}
@@ -96,6 +98,7 @@ export default function Home() {
         <Scroll carouselItems={products} />
       </main>
       <style jsx global>{`
+        /* existing styles unchanged */
         .collectionGrid {
           display: grid;
           grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -172,14 +175,14 @@ export default function RootLayout({ children }) {
 "use client";
 import { useParams } from "next/navigation";
 import { useState } from "react";
-import { useInventory } from "../../../vStore/inventory";
+import { useAssets, getAsset } from "../../../vStore/CORE/assets";
 import { useCart } from "../../../vStore/cartStore";
 import Scroll from "../../../components/Scroll";
 export default function ProductPage() {
   const params = useParams();
   const id = Array.isArray(params.id) ? params.id[0] : params.id;
-  const { getItemById, products } = useInventory();
-  const product = getItemById(id);
+  const { products } = useAssets();
+  const product = getAsset("products", id);
   const { addItem } = useCart();
   const [quantity, setQuantity] = useState(1);
   if (!product) return <div>Producto no encontrado</div>;
@@ -252,17 +255,18 @@ export default function ProductPage() {
 //===== app/dashboard/page.js =====
 "use client";
 import { useState } from "react";
-import { useInventory } from "../../../vStore/inventory";
+import {
+  useAssets,
+  addProduct,
+  updateProduct,
+  deleteProduct,
+  addCollection,
+  updateCollection,
+  deleteCollection,
+  assignCollection,
+} from "../../vStore/CORE/assets";
 export default function AdminDashboard() {
-  const {
-    products,
-    collections,
-    addProduct,
-    deleteProduct,
-    assignCollection,
-    addCollection,
-    deleteCollection,
-  } = useInventory();
+  const { products, collections } = useAssets();
   const [newProductName, setNewProductName] = useState("");
   const [newProductPrice, setNewProductPrice] = useState("");
   const [newProductSrc, setNewProductSrc] = useState("");
@@ -406,7 +410,7 @@ export default function AdminDashboard() {
             </thead>
             <tbody>
               {products.map((product) => (
-                <tr key={product.id}>
+                <tr key={product._id}>
                   <td style={{ padding: 8 }}>{product.name}</td>
                   <td style={{ padding: 8 }}>
                     ${product.price?.toLocaleString("es-CO")}
@@ -415,12 +419,12 @@ export default function AdminDashboard() {
                     <select
                       value={product.collectionId || ""}
                       onChange={(e) =>
-                        assignCollection(product.id, e.target.value || null)
+                        assignCollection(product._id, e.target.value || null)
                       }
                     >
                       <option value="">-- Sin colección --</option>
                       {collections.map((col) => (
-                        <option key={col.id} value={col.id}>
+                        <option key={col._id} value={col._id}>
                           {col.name}
                         </option>
                       ))}
@@ -428,7 +432,7 @@ export default function AdminDashboard() {
                   </td>
                   <td style={{ padding: 8 }}>
                     <button
-                      onClick={() => deleteProduct(product.id)}
+                      onClick={() => deleteProduct(product._id)}
                       style={{
                         background: "#dc2626",
                         color: "white",
@@ -485,7 +489,7 @@ export default function AdminDashboard() {
           <ul style={{ listStyle: "none", padding: 0 }}>
             {collections.map((col) => (
               <li
-                key={col.id}
+                key={col._id}
                 style={{
                   borderBottom: "1px solid #eee",
                   padding: "8px 0",
@@ -496,7 +500,7 @@ export default function AdminDashboard() {
               >
                 <span>{col.name}</span>
                 <button
-                  onClick={() => deleteCollection(col.id)}
+                  onClick={() => deleteCollection(col._id)}
                   style={{
                     background: "#dc2626",
                     color: "white",
@@ -516,41 +520,37 @@ export default function AdminDashboard() {
   );
 }
 //===== app/collections/[slug]/page.js =====
+// app/collections/[slug]/page.js
 "use client";
 import { useMemo } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
-import { products } from "../../../vStore/inventory";
-const mockProducts = [
-  { id: 1, name: "Vestido Alma", price: "$2.100.000" },
-  { id: 2, name: "Blusa Cielo", price: "$980.000" },
-  { id: 3, name: "Falda Luna", price: "$1.200.000" },
-  { id: 4, name: "Vestido Sol", price: "$2.400.000" },
-  { id: 5, name: "Top Brisa", price: "$750.000" },
-  { id: 6, name: "Pantalón Niebla", price: "$1.100.000" },
-  { id: 7, name: "Vestido Mar", price: "$1.900.000" },
-  { id: 8, name: "Conjunto Río", price: "$2.800.000" },
-];
-function shuffleArray(array) {
-  const arr = [...array];
-  for (let i = arr.length - 1; i > 0; i -= 1) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [arr[i], arr[j]] = [arr[j], arr[i]];
-  }
-  return arr;
-}
+import { useAssets } from "../../../vStore/CORE/assets";
+const fmtPrice = (price) =>
+  new Intl.NumberFormat("es-CO", {
+    style: "currency",
+    currency: "COP",
+    maximumFractionDigits: 0,
+  }).format(price);
 export default function CollectionPage() {
   const { slug } = useParams();
+  const { products } = useAssets(); // real products
   const title = Array.isArray(slug)
     ? slug[0]
     : slug
         .split("-")
         .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
         .join(" ");
-  const shuffledImages = useMemo(() => {
+  // Shuffle products once per render (for variety)
+  const shuffledProducts = useMemo(() => {
     if (!products?.length) return [];
-    return shuffleArray(products);
-  }, []);
+    const arr = [...products];
+    for (let i = arr.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+    return arr;
+  }, [products]);
   return (
     <>
       <h4
@@ -571,35 +571,32 @@ export default function CollectionPage() {
         {title}
       </h4>
       <div className="mosaicGrid">
-        {mockProducts.map((p, i) => {
-          const randomItem =
-            shuffledImages[i % shuffledImages.length] ?? shuffledImages[0];
-          return (
-            <Link
-              key={p.id}
-              href={`/prod/${randomItem.id}`}
-              className="mosaicCard"
-            >
-              <div className="mosaicImgWrapper">
-                {randomItem?.src ? (
-                  <img
-                    src={randomItem.src}
-                    alt={p.name}
-                    className="mosaicImg"
-                  />
-                ) : (
-                  <div className="mosaicFallback" />
-                )}
-              </div>
-              <div className="mosaicInfo">
-                <span className="mosaicName">{p.name}</span>
-                <span className="mosaicPrice">{p.price} COP</span>
-              </div>
-            </Link>
-          );
-        })}
+        {shuffledProducts.map((product) => (
+          <Link
+            key={product._id}
+            href={`/prod/${product._id}`}
+            className="mosaicCard"
+          >
+            <div className="mosaicImgWrapper">
+              {product.src ? (
+                <img
+                  src={product.src}
+                  alt={product.name}
+                  className="mosaicImg"
+                />
+              ) : (
+                <div className="mosaicFallback" />
+              )}
+            </div>
+            <div className="mosaicInfo">
+              <span className="mosaicName">{product.name}</span>
+              <span className="mosaicPrice">{fmtPrice(product.price)}</span>
+            </div>
+          </Link>
+        ))}
       </div>
       <style jsx global>{`
+        /* your existing mosaic styles – unchanged */
         .mosaicGrid {
           display: grid;
           grid-template-columns: repeat(3, 1fr);
@@ -665,11 +662,254 @@ export default function CollectionPage() {
     </>
   );
 }
+//===== app/api/CORE/[...slug]/route.js =====
+// app/api/core/[[...slug]]/route.js
+import { NextResponse } from "next/server";
+import {
+  get,
+  getAll,
+  create,
+  remove,
+  update,
+} from "@/lib/api/models/default.js";
+import { ObjectId } from "mongodb";
+// DYNAMIC IMPORT HELPER
+const getDbConnection = async () => {
+  try {
+    const { connectToDatabase } = await import("@/lib/mongodb");
+    return connectToDatabase();
+  } catch (error) {
+    console.error("Database connection failed:", error);
+    throw new Error("Failed to connect to database");
+  }
+};
+const debug = (label, obj) => {
+  try {
+    console.log(`[api/core] ${label}:`, JSON.stringify(obj));
+  } catch {
+    console.log(`[api/core] ${label}: (unserializable)`);
+  }
+};
+export async function OPTIONS() {
+  return new Response(null, {
+    status: 204,
+    headers: {
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Methods": "GET,POST,PUT,PATCH,DELETE,OPTIONS",
+      "Access-Control-Allow-Headers": "Content-Type, Authorization",
+    },
+  });
+}
+function badRequest(message) {
+  return NextResponse.json({ error: message }, { status: 400 });
+}
+export async function POST(req, { params }) {
+  const { slug = [] } = await params;
+  const collection = slug[0];
+  debug("incoming", { method: "POST", url: req.url, params: slug });
+  if (!collection)
+    return badRequest("Missing collection in slug. Example: /api/core/posts");
+  let body;
+  try {
+    body = await req.json();
+  } catch (err) {
+    debug("invalid-json", { err: err?.message });
+    return badRequest(
+      "Invalid JSON body. Ensure Content-Type: application/json and valid JSON.",
+    );
+  }
+  const data = body?.data ? { ...body.data } : { ...body };
+  if (!data || Object.keys(data).length === 0) {
+    return badRequest(
+      "Missing `data` payload for POST. Provide JSON with `data` object or payload fields.",
+    );
+  }
+  data.creation = {
+    utc: new Date().toISOString(),
+    by: body?.by ?? null,
+  };
+  try {
+    const response = await create(collection, data);
+    const asset = JSON.parse(
+      JSON.stringify({ _id: response.insertedId, ...data }),
+    );
+    return NextResponse.json({ response, asset });
+  } catch (err) {
+    console.error("[api/core] create error:", err);
+    return NextResponse.json(
+      { error: "Create failed", details: err?.message },
+      { status: 500 },
+    );
+  }
+}
+export async function GET(req, { params }) {
+  const { slug = [] } = await params;
+  const collection = slug[0];
+  debug("incoming", { method: "GET", url: req.url, params: slug });
+  if (!collection)
+    return badRequest("Missing collection in slug. Example: /api/core/posts");
+  const url = new URL(req.url);
+  const query = Object.fromEntries(url.searchParams.entries());
+  try {
+    const response = Object.keys(query).length
+      ? await get(collection, query)
+      : await getAll(collection);
+    return NextResponse.json({ response });
+  } catch (err) {
+    console.error("[api/core] get error:", err);
+    return NextResponse.json(
+      { error: "Get failed", details: err?.message },
+      { status: 500 },
+    );
+  }
+}
+export async function DELETEold(req, { params }) {
+  const { slug = [] } = await params;
+  const collection = slug[0];
+  debug("incoming", { method: "DELETE", url: req.url, params: slug });
+  if (!collection)
+    return badRequest("Missing collection in slug. Example: /api/core/posts");
+  const url = new URL(req.url);
+  let id = url.searchParams.get("id");
+  if (!id) {
+    try {
+      const body = await req.json().catch(() => null);
+      id = body?.id;
+    } catch (err) {
+      // ignore parse error, will trigger missing id below
+    }
+  }
+  if (!id)
+    return badRequest(
+      "Missing id for DELETE. Provide ?id=... or JSON body { id: '...' }",
+    );
+  try {
+    const response = await remove(collection, { id });
+    return NextResponse.json({ response });
+  } catch (err) {
+    console.error("[api/core] delete error:", err);
+    return NextResponse.json(
+      { error: "Delete failed", details: err?.message },
+      { status: 500 },
+    );
+  }
+}
+export async function DELETE(request, { params }) {
+  try {
+    // params.slug is array because of [...slug] catch-all
+    const slugParts = params?.slug || [];
+    if (slugParts.length === 0) {
+      return new Response(
+        JSON.stringify({ message: "Collection name is required" }),
+        {
+          status: 400,
+          headers: { "Content-Type": "application/json" },
+        },
+      );
+    }
+    const collection = slugParts[0]; // e.g. "heroes", "projects", "files"
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get("id");
+    // You can also support body as fallback/alternative
+    let bodyId;
+    try {
+      const body = await request.json().catch(() => ({}));
+      bodyId = body.id || body._id;
+    } catch {}
+    const assetId = id || bodyId;
+    if (!assetId) {
+      return new Response(
+        JSON.stringify({
+          message: "Asset ID is required (use ?id=... or body {id})",
+        }),
+        {
+          status: 400,
+          headers: { "Content-Type": "application/json" },
+        },
+      );
+    }
+    const { db } = await getDbConnection();
+    let objectId;
+    try {
+      objectId = new ObjectId(assetId);
+    } catch (err) {
+      return new Response(JSON.stringify({ message: "Invalid ID format" }), {
+        status: 400,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+    const result = await db.collection(collection).deleteOne({ _id: objectId });
+    if (result.deletedCount === 0) {
+      return new Response(JSON.stringify({ message: "Asset not found" }), {
+        status: 404,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+    return new Response(
+      JSON.stringify({ message: "Asset deleted successfully" }),
+      {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      },
+    );
+  } catch (error) {
+    console.error("DELETE error:", error);
+    return new Response(
+      JSON.stringify({
+        message: "Error deleting asset",
+        error: error.message,
+      }),
+      {
+        status: 500,
+        headers: { "Content-Type": "application/json" },
+      },
+    );
+  }
+}
+export async function PUT() {
+  return NextResponse.json(
+    {
+      error:
+        "PUT operation needs the field pattern. Example: api/music/comments",
+    },
+    { status: 400 },
+  );
+}
+export async function PATCH(req, { params }) {
+  const { slug = [] } = await params;
+  const collection = slug[0];
+  if (!collection) {
+    return NextResponse.json(
+      { error: "Missing collection in slug for PATCH." },
+      { status: 400 },
+    );
+  }
+  let body;
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json(
+      { error: "Invalid JSON body for PATCH." },
+      { status: 400 },
+    );
+  }
+  const id = body?.id || body?._id;
+  const data = body?.data;
+  if (!id || !data) {
+    return NextResponse.json(
+      { error: "PATCH requires { id, data }." },
+      { status: 400 },
+    );
+  }
+  const response = await update(collection, id, data);
+  return NextResponse.json({ response });
+}
 //===== components/Scroll.js =====
 "use client";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-export default function Scroll({ carouselItems }) {
+export default function Scroll({ carouselItems = [] }) {
+  const [mounted, setMounted] = useState(false);
   const scrollRef = useRef(null);
   const router = useRouter();
   const dragRef = useRef({
@@ -681,6 +921,10 @@ export default function Scroll({ carouselItems }) {
     target: null,
   });
   useEffect(() => {
+    setMounted(true);
+  }, []);
+  useEffect(() => {
+    if (!mounted) return;
     const el = scrollRef.current;
     if (!el) return;
     const endDrag = () => {
@@ -711,7 +955,9 @@ export default function Scroll({ carouselItems }) {
     const onPointerMove = (e) => {
       if (!dragRef.current.isDown) return;
       const dx = e.clientX - dragRef.current.startX;
-      if (Math.abs(dx) > 5) dragRef.current.moved = true;
+      if (Math.abs(dx) > 5) {
+        dragRef.current.moved = true;
+      }
       el.scrollLeft = dragRef.current.scrollLeft - dx;
     };
     el.addEventListener("pointerdown", onPointerDown);
@@ -726,7 +972,11 @@ export default function Scroll({ carouselItems }) {
       el.removeEventListener("pointercancel", endDrag);
       el.removeEventListener("lostpointercapture", endDrag);
     };
-  }, []);
+  }, [mounted, router]);
+  // Prevent hydration mismatch
+  if (!mounted) {
+    return null;
+  }
   return (
     <div
       ref={scrollRef}
@@ -741,9 +991,13 @@ export default function Scroll({ carouselItems }) {
       <div style={{ display: "flex" }}>
         {carouselItems.map((item) => (
           <div
-            key={item.id}
-            data-item-id={item.id}
-            style={{ overflow: "hidden", minWidth: "300px", cursor: "pointer" }}
+            key={String(item._id)}
+            data-item-id={item._id}
+            style={{
+              overflow: "hidden",
+              minWidth: "300px",
+              cursor: "pointer",
+            }}
           >
             <div className="carousel-img-wrapper">
               <img
@@ -768,34 +1022,17 @@ export default function Scroll({ carouselItems }) {
 }
 //===== components/Cart.js =====
 "use client";
-import { useEffect, useState } from "react";
-import { products, collections } from "../vStore/inventory";
-const DEMO_ITEMS = [
-  {
-    id: "sabina-dress",
-    name: "Vestido Alma",
-    variant: "XS",
-    price: 2100000,
-    qty: 1,
-    src: null,
-  },
-  {
-    id: "rowan-dress",
-    name: "Blusa Cielo",
-    variant: "S",
-    price: 980000,
-    qty: 2,
-    src: null,
-  },
-];
+import { useEffect, useMemo, useState } from "react";
+import { useCart } from "../vStore/cartStore";
+import { useAssets } from "../vStore/CORE/assets"; // changed import
 const fmt = (n) =>
   new Intl.NumberFormat("es-CO", {
     style: "currency",
     currency: "COP",
     maximumFractionDigits: 0,
   }).format(n);
-function CartItem({ item, onQty, onRemove }) {
-  const product = products.find((product) => product.id == item.id);
+function CartItem({ item, product, onQty, onRemove }) {
+  if (!product) return null;
   return (
     <div style={s.item}>
       <div style={s.thumb}>
@@ -817,19 +1054,22 @@ function CartItem({ item, onQty, onRemove }) {
           <div style={s.stepper}>
             <button
               style={s.stepBtn}
-              onClick={() => onQty(item.id, item.qty - 1)}
+              onClick={() => onQty(item._id, item.variant, item.qty - 1)}
             >
               −
             </button>
             <span style={s.qty}>{item.qty}</span>
             <button
               style={s.stepBtn}
-              onClick={() => onQty(item.id, item.qty + 1)}
+              onClick={() => onQty(item._id, item.variant, item.qty + 1)}
             >
               +
             </button>
           </div>
-          <button style={s.removeBtn} onClick={() => onRemove(item.id)}>
+          <button
+            style={s.removeBtn}
+            onClick={() => onRemove(item._id, item.variant)}
+          >
             Eliminar
           </button>
         </div>
@@ -839,18 +1079,17 @@ function CartItem({ item, onQty, onRemove }) {
 }
 export default function CartOverlay() {
   const [open, setOpen] = useState(false);
-  const [items, setItems] = useState(DEMO_ITEMS);
-  const count = items.reduce((s, i) => s + i.qty, 0);
-  const subtotal = items.reduce((s, i) => s + i.price * i.qty, 0);
-  const setQty = (id, qty) => {
-    if (qty < 1) return;
-    setItems((prev) => prev.map((i) => (i.id === id ? { ...i, qty } : i)));
-  };
-  const removeItem = (id) =>
-    setItems((prev) => prev.filter((i) => i.id !== id));
+  const [mounted, setMounted] = useState(false);
+  const { items, count, subtotal, updateQty, removeItem } = useCart();
+  const { products } = useAssets(); // changed hook
+  useEffect(() => {
+    setMounted(true);
+  }, []);
   useEffect(() => {
     if (!open) return;
-    const onKey = (e) => e.key === "Escape" && setOpen(false);
+    const onKey = (e) => {
+      if (e.key === "Escape") setOpen(false);
+    };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [open]);
@@ -860,9 +1099,47 @@ export default function CartOverlay() {
       document.body.style.overflow = "";
     };
   }, [open]);
+  const productMap = useMemo(() => {
+    const map = {};
+    (products || []).forEach((p) => {
+      map[p._id] = p; // use _id
+    });
+    return map;
+  }, [products]);
+  const sendWhatsAppOrder = () => {
+    const customerPhone = window.prompt(
+      "Por favor, ingresa tu número de teléfono (ej: 3001234567) para que podamos contactarte:",
+      "",
+    );
+    if (!customerPhone) {
+      alert("Necesitamos tu número de teléfono para procesar el pedido.");
+      return;
+    }
+    const cleaned = customerPhone.replace(/\D/g, "");
+    if (cleaned.length < 7) {
+      alert(
+        "Por favor ingresa un número de teléfono válido (mínimo 7 dígitos).",
+      );
+      return;
+    }
+    const sellerNumber = "573153410282";
+    let message = "🛍️ *Nuevo Pedido*%0A%0A";
+    message += `📞 *Teléfono del cliente:* ${cleaned}%0A%0A`;
+    items.forEach((item, idx) => {
+      const product = productMap[item._id]; // use _id
+      if (!product) return;
+      const variantText = item.variant ? ` (${item.variant})` : "";
+      const itemPrice = fmt(item.price * item.qty);
+      message += `${idx + 1}. ${product.name}${variantText} x${item.qty} → ${itemPrice}%0A`;
+    });
+    message += `%0A📦 *Subtotal:* ${fmt(subtotal)}%0A`;
+    message += `🚚 *Envío e impuestos:* Calculados al finalizar%0A%0A`;
+    message += `🔗 Gracias por tu compra.`;
+    window.open(`https://wa.me/${sellerNumber}?text=${message}`, "_blank");
+  };
+  if (!mounted) return null;
   return (
     <>
-      {/* floating toggle button */}
       <button
         onClick={() => setOpen((v) => !v)}
         style={{ ...s.fab, ...(open ? s.fabOpen : {}) }}
@@ -890,7 +1167,6 @@ export default function CartOverlay() {
           </>
         )}
       </button>
-      {/* backdrop */}
       <div
         onClick={() => setOpen(false)}
         style={{
@@ -899,7 +1175,6 @@ export default function CartOverlay() {
           pointerEvents: open ? "auto" : "none",
         }}
       />
-      {/* drawer */}
       <aside
         style={{
           ...s.drawer,
@@ -941,9 +1216,10 @@ export default function CartOverlay() {
           ) : (
             items.map((item) => (
               <CartItem
-                key={item.id}
+                key={`${item._id || item.id}-${item.variant ?? "novariant"}`}
                 item={item}
-                onQty={setQty}
+                product={productMap[item._id || item.id]} // also safe for old items
+                onQty={updateQty}
                 onRemove={removeItem}
               />
             ))
@@ -956,7 +1232,9 @@ export default function CartOverlay() {
               <span style={s.subtotalValue}>{fmt(subtotal)}</span>
             </div>
             <p style={s.taxNote}>Envío e impuestos calculados al finalizar</p>
-            <button style={s.checkoutBtn}>Finalizar Compra</button>
+            <button style={s.checkoutBtn} onClick={sendWhatsAppOrder}>
+              Finalizar Compra
+            </button>
             <button style={s.continueBtn} onClick={() => setOpen(false)}>
               Seguir comprando
             </button>
@@ -966,6 +1244,7 @@ export default function CartOverlay() {
     </>
   );
 }
+// ---------- Styles ----------
 const s = {
   fab: {
     position: "fixed",
@@ -1226,15 +1505,20 @@ const s = {
   },
 };
 //===== components/LayoutWrapper.js =====
+// components/LayoutWrapper.js (updated)
 "use client";
+import { useEffect } from "react";
 import { usePathname } from "next/navigation";
 import Top from "./Top";
 import Bottom from "./Bottom";
 import CartOverlay from "./Cart";
+import { initAssets } from "@/vStore/CORE/assets"; // new import
 export default function LayoutWrapper({ children }) {
   const pathname = usePathname();
-  // Hide global elements on any route that contains "/dashboard"
   const isDashboard = pathname?.includes("/dashboard");
+  useEffect(() => {
+    initAssets();
+  }, []);
   return (
     <>
       {!isDashboard && <CartOverlay />}
@@ -2243,40 +2527,72 @@ export function useInventory() {
 //===== vStore/cartStore.js =====
 "use client";
 import { proxy, useSnapshot } from "valtio";
-const cartState = proxy({
-  items: [],
-});
+// ----- Load cart & migrate old 'id' to '_id' -----
+const loadCart = () => {
+  if (typeof window === "undefined") return { items: [] };
+  const stored = localStorage.getItem("cart_items");
+  if (stored) {
+    try {
+      const parsed = JSON.parse(stored);
+      // migrate: copy old id → _id if missing
+      return {
+        items: parsed.map((item) => ({
+          ...item,
+          _id: item._id || item.id, // fallback to old id
+        })),
+      };
+    } catch {
+      return { items: [] };
+    }
+  }
+  return { items: [] };
+};
+const { items: initialItems } = loadCart();
+const cartState = proxy({ items: initialItems });
+const persistCart = () => {
+  if (typeof window !== "undefined") {
+    localStorage.setItem("cart_items", JSON.stringify(cartState.items));
+  }
+};
 export const cartActions = {
   addItem(product, variant, qty = 1) {
     const existing = cartState.items.find(
-      (i) => i.id === product.id && i.variant === variant,
+      (i) => i._id === product._id && i.variant === variant,
     );
     if (existing) {
       existing.qty += qty;
     } else {
       cartState.items.push({
-        id: product.id,
+        _id: product._id, // store only _id
         variant: variant || null,
         price: product.price,
         qty,
       });
     }
+    persistCart();
   },
-  updateQty(id, variant, newQty) {
+  updateQty(_id, variant, newQty) {
     if (newQty < 1) return;
     const item = cartState.items.find(
-      (i) => i.id === id && i.variant === variant,
+      (i) => i._id === _id && i.variant === variant,
     );
-    if (item) item.qty = newQty;
+    if (item) {
+      item.qty = newQty;
+      persistCart();
+    }
   },
-  removeItem(id, variant) {
+  removeItem(_id, variant) {
     const index = cartState.items.findIndex(
-      (i) => i.id === id && i.variant === variant,
+      (i) => i._id === _id && i.variant === variant,
     );
-    if (index !== -1) cartState.items.splice(index, 1);
+    if (index !== -1) {
+      cartState.items.splice(index, 1);
+      persistCart();
+    }
   },
   clearCart() {
     cartState.items = [];
+    persistCart();
   },
 };
 export function useCart() {
@@ -2293,6 +2609,517 @@ export function useCart() {
     clearCart: cartActions.clearCart,
   };
 }
-//===== vStore/inventory.js =====
-"use client";
-export { useInventory, getItemById, inventoryActions } from "./inventoryStore";
+//===== vStore/CORE/assets.js =====
+// vStore/CORE/assets.js (final)
+import { proxy, useSnapshot, snapshot } from "valtio";
+import axios from "axios";
+const state = proxy({
+  products: [],
+  collections: [],
+  loading: false,
+  error: null,
+});
+// Fetch helpers (use generic CORE endpoint)
+async function fetchProducts() {
+  const { data } = await axios.get("/api/CORE/products");
+  return data.response ?? data;
+}
+async function fetchCollections() {
+  const { data } = await axios.get("/api/CORE/collections");
+  return data.response ?? data;
+}
+export async function initAssets() {
+  if (state.loading) return;
+  state.loading = true;
+  state.error = null;
+  try {
+    const [products, collections] = await Promise.all([
+      fetchProducts(),
+      fetchCollections(),
+    ]);
+    state.products = products;
+    state.collections = collections;
+  } catch (err) {
+    state.error = err.message;
+    console.error("Failed to load assets:", err);
+  } finally {
+    state.loading = false;
+  }
+}
+// Generic CRUD (unchanged from earlier)
+export async function addAsset(collection, data) {
+  try {
+    const res = await axios.post(`/api/CORE/${collection}`, data);
+    const newDoc = res.data.asset ?? res.data;
+    state[collection].push(newDoc);
+    return newDoc;
+  } catch (err) {
+    console.error(`addAsset (${collection}) failed:`, err);
+    throw err;
+  }
+}
+export async function updateAsset(collection, id, updates) {
+  try {
+    await axios.patch(`/api/CORE/${collection}`, { id, data: updates });
+    const index = state[collection].findIndex((item) => item._id === id);
+    if (index !== -1) {
+      state[collection][index] = { ...state[collection][index], ...updates };
+    }
+  } catch (err) {
+    console.error(`updateAsset (${collection}) failed:`, err);
+    throw err;
+  }
+}
+export async function deleteAsset(collection, id) {
+  if (!collection || !id) throw new Error("collection and id required");
+  if (!window.confirm("Are you sure you want to delete this item?")) return;
+  try {
+    await axios.delete(`/api/CORE/${collection}`, { params: { id } });
+    const index = state[collection].findIndex((item) => item._id === id);
+    if (index !== -1) state[collection].splice(index, 1);
+    return true;
+  } catch (err) {
+    console.error(`deleteAsset (${collection}) failed:`, err);
+    return false;
+  }
+}
+// Domain-specific actions
+export const addProduct = (data) => addAsset("products", data);
+export const updateProduct = (id, updates) =>
+  updateAsset("products", id, updates);
+export const deleteProduct = (id) => deleteAsset("products", id);
+export const addCollection = (data) => addAsset("collections", data);
+export const updateCollection = (id, updates) =>
+  updateAsset("collections", id, updates);
+export const deleteCollection = (id) => deleteAsset("collections", id);
+export const assignCollection = (productId, collectionId) =>
+  updateAsset("products", productId, { collectionId });
+// Synchronous helpers
+export const getAsset = (section, _id) =>
+  state[section]?.find((asset) => asset._id == _id) ?? null;
+// React hook – SSR safe
+export const useAssets = () =>
+  typeof window === "object" ? useSnapshot(state) : snapshot(state);
+export default state;
+//===== lib/mongodb.js =====
+// lib/mongodb.js (or lib/api/util/mongodb.js – just keep a single file)
+const { MongoClient } = require("mongodb");
+const { MONGODB_URI, MONGODB_DB } = process.env;
+if (!MONGODB_URI) {
+  throw new Error(
+    "Please define the MONGODB_URI environment variable inside .env.local",
+  );
+}
+if (!MONGODB_DB) {
+  throw new Error(
+    "Please define the MONGODB_DB environment variable inside .env.local",
+  );
+}
+/**
+ * Global is used here to maintain a cached connection across hot reloads
+ * in development. This prevents connections growing exponentially
+ * during API Route usage.
+ */
+let cached = global.mongo;
+if (!cached) cached = global.mongo = {};
+const connectToDatabase = async () => {
+  if (cached.conn) return cached.conn;
+  if (!cached.promise) {
+    const conn = {};
+    cached.promise = MongoClient.connect(MONGODB_URI)
+      .then((client) => {
+        conn.client = client;
+        return client.db(MONGODB_DB);
+      })
+      .then((db) => {
+        conn.db = db;
+        cached.conn = conn;
+      });
+  }
+  await cached.promise;
+  return cached.conn;
+};
+module.exports = {
+  connectToDatabase,
+};
+//===== lib/api/models/default.js =====
+const { deleteFolderInCollection } = require("../../wasabi");
+const { ObjectId } = require("mongodb");
+const create = async (collection, data) => {
+  const { connectToDatabase } = require("../../mongodb");
+  const { db } = await connectToDatabase();
+  const res = await db.collection(collection).insertOne(data);
+  return res;
+};
+const getAll = async (collection) => {
+  const { connectToDatabase } = require("../../mongodb");
+  const { db } = await connectToDatabase();
+  return db.collection(collection).find({}).toArray();
+};
+// Accept a query object (e.g. { phone: "+57..." } or { _id: "..." })
+// Maps `phone` => `info.phone` so GET ?phone=... works with nested storage.
+const get = async (collection, query = {}) => {
+  const { connectToDatabase } = require("../../mongodb");
+  const { db } = await connectToDatabase();
+  // If query is a string/number (legacy), fall back to return all
+  if (!query || typeof query !== "object") {
+    return db.collection(collection).find({}).toArray();
+  }
+  const filter = {};
+  // support _id query
+  if (query._id) {
+    try {
+      filter._id = ObjectId(query._id);
+    } catch (e) {
+      // invalid id string -> no results
+      return [];
+    }
+  }
+  // convenience: query ?phone=... -> map to info.phone
+  if (query.phone) {
+    filter["info.phone"] = query.phone;
+  }
+  // copy other direct keys (shallow)
+  Object.keys(query).forEach((k) => {
+    if (k === "_id" || k === "phone") return;
+    // handle numeric strings for offset/limit if you later support them
+    filter[k] = query[k];
+  });
+  return db.collection(collection).find(filter).toArray();
+};
+// remove: accept either id string or { id: '...' } to match route usage
+const remove = async (collection, idOrObj, wasabiId = undefined) => {
+  const { connectToDatabase } = require("../../mongodb");
+  const { db } = await connectToDatabase();
+  let _id = idOrObj;
+  if (idOrObj && typeof idOrObj === "object" && idOrObj.id) {
+    _id = idOrObj.id;
+  }
+  if (!_id) {
+    throw new Error("missing id for remove");
+  }
+  wasabiId && (await deleteFolderInCollection(collection, wasabiId));
+  return db.collection(collection).deleteOne({ _id: ObjectId(_id) });
+};
+// Patch/update a document by _id. data is the partial object to $set.
+const update = async (collection, id, data) => {
+  const { connectToDatabase } = require("../../mongodb");
+  const { db } = await connectToDatabase();
+  if (!id) throw new Error("missing id for update");
+  if (!data || Object.keys(data).length === 0)
+    throw new Error("missing data for update");
+  const res = await db
+    .collection(collection)
+    .updateOne({ _id: new ObjectId(id) }, { $set: data }, { upsert: false });
+  return res;
+};
+module.exports = {
+  create,
+  getAll,
+  get,
+  remove,
+  update,
+};
+//===== lib/api/models/updateAsset.js =====
+import { ObjectId } from "mongodb";
+import { connectToDatabase } from "../../mongodb";
+export async function updateAsset(req, res, collectionName, fields) {
+  const asset = req.assetsState[collectionName].find(
+    (asset) => asset._id == req.body._id,
+  );
+  if (req.method === "PUT") {
+    try {
+      const { db } = await connectToDatabase();
+      const issuer = req.session.user;
+      const edition = {
+        utc: new Date(),
+        by: new ObjectId(issuer._id),
+      };
+      const result = await db.collection(collectionName).updateOne(
+        {
+          _id: ObjectId(req.body._id),
+        },
+        {
+          $set: fields,
+          $push: {
+            edition,
+          },
+        },
+      );
+      if (!result.acknowledged) {
+        return res.status(400).json({
+          status: "failure",
+          message: "Update operation was not acknowledged",
+        });
+      } else {
+        for (const field in fields) {
+          asset[field] = req.body[field];
+        }
+        !asset.edition && (asset.edition = []);
+        asset.edition.push(JSON.parse(JSON.stringify(edition)));
+        res.status(200).json({
+          status: "success",
+          data: result,
+        });
+      }
+    } catch (error) {
+      res.status(500).json({
+        status: "failure",
+        message: "An error occurred while updating the asset",
+        error: error.message,
+      });
+    }
+  } else {
+    res.status(405).end(`Method ${req.method} Not Allowed`);
+  }
+  asset.editing = false;
+}
+//===== lib/wasabi.js =====
+// A good reference for V3 of S3 code examples is https://github.com/awsdocs/aws-doc-sdk-examples/tree/master/javascriptv3/example_code/s3/src
+// and https://github.com/awsdocs/aws-doc-sdk-examples/tree/master/javascriptv3/example_code/s3/src
+// FS for file uploading
+// const fs = require("fs");
+const { getSignedUrl } = require("@aws-sdk/s3-request-presigner"); // npm install @aws-sdk/s3-request-presigner first, https://www.npmjs.com/package/@aws-sdk/s3-request-presigner
+const REGION = process.env.AWS_REGION; //https://wasabi-support.zendesk.com/hc/en-us/articles/360015106031-What-are-the-service-URLs-for-Wasabi-s-different-regions-
+//https://github.com/annabelle/wasabi-aws-sdk-js-v3-demo/blob/main/wasabi_S3_JDK_V3_examples.js
+const {
+  S3Client,
+  PutObjectCommand,
+  CreateBucketCommand,
+  ListBucketsCommand,
+  ListObjectsCommand,
+  GetObjectCommand,
+  DeleteObjectCommand,
+} = require("@aws-sdk/client-s3");
+// const { sign } = require("crypto");
+const s3Client = new S3Client({
+  region: REGION,
+  endpoint: `https://s3.${REGION}.wasabisys.com`,
+  signatureVersion: "v4",
+  credentialDefaultProvider: () => ({
+    accessKeyId: process.env.AWS_ACCESS_KEY,
+    secretAccessKey: process.env.AWS_SECRET_KEY,
+  }),
+});
+// Set the bucket parameters.
+const bucketParams = { Bucket: "imptech" };
+// const file = "upload_me.txt"; // Path to and name of object. For example '../myFiles/index.js'.
+//const file = "exampleUploadPDF.pdf";
+// const fileStream= fs.createReadStream(file);
+// Set the parameters for streaming object (object uploaded from file system)
+// let uploadStreamingObjectParams = {
+//   // bucket name
+//   Bucket: bucketParams.Bucket, //Bucket: "currentj-ihasabucket",
+//   // Add the required 'Key' parameter using the 'path' module.
+//   Key: path.basename(file),
+//   // Add the required 'Body' parameter, this is actual file content
+//   Body: fileStream,
+// };
+//set the parameters for uploading internal application content (not uploaded)
+// let internalObjectContent =
+//   "<strong> I'm html and I'm uploaded, could have done a .txt <u>instead</u> here too for example </strong>";
+let internalObjectName = "setcontentInternalAppContentExample.html";
+//let internalObjectName = "upload_me.txt"
+// Create the S3 bucket.
+async function makeBucket(bucketParams) {
+  try {
+    const data = await s3Client.send(new CreateBucketCommand(bucketParams));
+    console.log("Success", data);
+    return data; // For unit tests.
+  } catch (err) {
+    console.log("Error", err);
+  }
+}
+// returns an array of bucket objects with name and creation Date
+async function listBuckets() {
+  try {
+    const data = await s3Client.send(new ListBucketsCommand({}));
+    console.log("Success", data);
+    return data; // For unit tests.
+  } catch (err) {
+    console.log("Error", err);
+  }
+}
+//upload an object from a file system or internally from app, depending on parameters
+async function putObject(uploadParams) {
+  try {
+    const data = await s3Client.send(new PutObjectCommand(uploadParams));
+    console.log("Success", data);
+    return data; // For unit tests.
+  } catch (err) {
+    console.log("Error", err);
+  }
+}
+async function listObjectsCommand(bucketParams) {
+  try {
+    const data = await s3Client.send(new ListObjectsCommand(bucketParams));
+    console.log("Success", data);
+    return data; // For unit tests.
+  } catch (err) {
+    console.log("Error", err);
+  }
+}
+async function getObjectCommand(bucketParams) {
+  try {
+    // Create a helper function to convert a ReadableStream to a string.
+    // TODO: Production apps may want a CDN as a good way to avoid reading large amounts from memeory
+    const streamToString = (stream) =>
+      new Promise((resolve, reject) => {
+        const chunks = [];
+        stream.on("data", (chunk) => chunks.push(chunk));
+        stream.on("error", reject);
+        stream.on("end", () => resolve(Buffer.concat(chunks).toString("utf8")));
+      });
+    // Get the object} from the Amazon S3 bucket. It is returned as a ReadableStream.
+    const data = await s3Client.send(new GetObjectCommand(bucketParams));
+    const bodyContents = await streamToString(data.Body);
+    console.log(bodyContents);
+    return bodyContents;
+  } catch (err) {
+    console.log("Error", err);
+  }
+}
+async function deleteObjectCommand(bucketParams) {
+  try {
+    const data = await s3Client.send(new DeleteObjectCommand(bucketParams));
+    console.log("Success", data);
+    return data; // For unit tests.
+  } catch (err) {
+    console.log("Error", err);
+  }
+}
+async function deleteFolderInCollection(collection, id) {
+  const params = {
+    Bucket: bucketParams.Bucket, //Bucket: "currentj-ihasabucket",
+    Prefix: `${collection}/${id}`,
+  };
+  console.log("id: ", id);
+  try {
+    const data = await s3Client.send(new ListObjectsCommand(params));
+    data.Contents &&
+      (await Promise.all(
+        data.Contents?.map((media) =>
+          s3Client.send(
+            new DeleteObjectCommand({
+              Bucket: bucketParams.Bucket, //Bucket: "currentj-ihasabucket",
+              Key: media.Key,
+            }),
+          ),
+        ),
+      ));
+    // const data = await s3Client.send(new DeleteObjectCommand(params));
+    console.log("Success", data);
+    return data; // For unit tests.
+  } catch (err) {
+    console.log("Error", err);
+  }
+}
+async function deleteList(list) {
+  try {
+    await Promise.all(
+      list.map((location) =>
+        s3Client.send(
+          new DeleteObjectCommand({
+            Bucket: bucketParams.Bucket, //Bucket: "currentj-ihasabucket",
+            Key: location,
+          }),
+        ),
+      ),
+    );
+    // const data = await s3Client.send(new DeleteObjectCommand(params));
+  } catch (err) {
+    console.log("Error", err);
+  }
+}
+async function getSignedURL(key) {
+  const params = {
+    Bucket: bucketParams.Bucket, //Bucket: "currentj-ihasabucket",
+    Key: key,
+    ContentType: "image/jpeg",
+  };
+  try {
+    // Create the command.
+    const command = new GetObjectCommand(params);
+    // Create the presigned URL.
+    const signedUrl = await getSignedUrl(s3Client, command, {
+      expiresIn: 3600 * 24,
+    });
+    // console.log(
+    //   `\nGetting "${bucketParams.Key}" using signedUrl with body "${bucketParams.Body}" in v3`
+    // );
+    //
+    return signedUrl;
+    // console.log(signedUrl);
+    /*
+    // we aren't actually trying to get the content, just want the url
+    const response = await fetch(signedUrl);
+      nsole.log(
+      `\nResponse returned by signed URL: ${await response.text()}\n`
+    );
+    */
+  } catch (err) {
+    console.log("Error creating presigned URL", err);
+  }
+}
+async function getPreSignedURL(key) {
+  try {
+    const params = {
+      Bucket: bucketParams.Bucket, //Bucket: "currentj-ihasabucket",
+      Key: key,
+      ContentType: "image/jpeg",
+    };
+    return await getSignedUrl(s3Client, new PutObjectCommand(params), {
+      expiresIn: 3600, // The URL will expire in 1 hour
+      // Set the HTTP method to PUT to allow upload
+      method: "PUT",
+    });
+  } catch (err) {
+    console.log("Error creating presigned URL", err);
+  }
+}
+async function uploadFile(key, file) {
+  console.log("THE key", key);
+  console.log("THE file", file);
+  // const internalObjectContent = console.log("bucket", bucketParams.Bucket);
+  let uploadInternalObjectParams = {
+    // bucket name
+    Bucket: bucketParams.Bucket, //Bucket: "currentj-ihasabucket",
+    // Add the required 'Key' parameter using the 'path' module.
+    Key: key,
+    // Add the required 'Body' parameter, this is actual file content
+    Body: file,
+    ACL: "public-read",
+    ContentType: "image/jpeg",
+    // ContentType: "text/html", //'text/plain' for .txt
+  };
+  let getObjectParams = {
+    // bucket name
+    Bucket: bucketParams.Bucket, //Bucket: "currentj-ihasabucket",
+    // Add the required 'Key' parameter using the 'path' module.
+    Key: key,
+  };
+  const result = await putObject(uploadInternalObjectParams);
+  console.log("test img:", result);
+  return await getSignedURL(getObjectParams);
+}
+//uncomment the code below depending on what you want to see an example of
+//makeBucket(bucketParams);
+// listBuckets();
+//putObject(uploadStreamingObjectParams);
+//putObject(uploadInternalObjectParams); //change to inline
+//listObjectsCommand(bucketParams);
+//getObjectCommand(getObjectParams);
+//deleteObjectCommand(getObjectParams);
+//getSignedURL(getObjectParams);
+//if want to do an upload and directly after get the signed params then need to make sure signing is done after object is put
+//putObject(uploadInternalObjectParams).then(() => getSignedURL(getObjectParams));
+//
+//
+module.exports = {
+  deleteList,
+  listBuckets,
+  uploadFile,
+  getPreSignedURL,
+  getSignedURL,
+  deleteFolderInCollection,
+};

@@ -1,8 +1,7 @@
 "use client";
-
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useCart } from "../vStore/cartStore";
-import { useInventory } from "../vStore/inventoryStore";
+import { useAssets } from "../vStore/CORE/assets"; // changed import
 
 const fmt = (n) =>
   new Intl.NumberFormat("es-CO", {
@@ -34,21 +33,21 @@ function CartItem({ item, product, onQty, onRemove }) {
           <div style={s.stepper}>
             <button
               style={s.stepBtn}
-              onClick={() => onQty(item.id, item.variant, item.qty - 1)}
+              onClick={() => onQty(item.handle, item.variant, item.qty - 1)}
             >
               −
             </button>
             <span style={s.qty}>{item.qty}</span>
             <button
               style={s.stepBtn}
-              onClick={() => onQty(item.id, item.variant, item.qty + 1)}
+              nClick={() => onQty(item.handle, item.variant, item.qty + 1)}
             >
               +
             </button>
           </div>
           <button
             style={s.removeBtn}
-            onClick={() => onRemove(item.id, item.variant)}
+            onClick={() => onRemove(item._id, item.variant)}
           >
             Eliminar
           </button>
@@ -60,57 +59,19 @@ function CartItem({ item, product, onQty, onRemove }) {
 
 export default function CartOverlay() {
   const [open, setOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const { items, count, subtotal, updateQty, removeItem } = useCart();
-  const { products } = useInventory();
+  const { products } = useAssets(); // changed hook
 
-  const productMap = {};
-  products.forEach((p) => {
-    productMap[p.id] = p;
-  });
-
-  const sendWhatsAppOrder = () => {
-    // Ask for customer's phone number
-    const customerPhone = window.prompt(
-      "Por favor, ingresa tu número de teléfono (ej: 3001234567) para que podamos contactarte:",
-      "",
-    );
-    if (!customerPhone) {
-      alert("Necesitamos tu número de teléfono para procesar el pedido.");
-      return;
-    }
-
-    // Basic validation: remove non-digits, check length
-    const cleaned = customerPhone.replace(/\D/g, "");
-    if (cleaned.length < 7) {
-      alert(
-        "Por favor ingresa un número de teléfono válido (mínimo 7 dígitos).",
-      );
-      return;
-    }
-
-    // Seller's WhatsApp number (change to your own number, international format without '+')
-    const sellerNumber = "573153410282"; // Example: Colombia 3001234567
-
-    // Build the message
-    let message = "🛍️ *Nuevo Pedido*%0A%0A";
-    message += `📞 *Teléfono del cliente:* ${cleaned}%0A%0A`;
-    items.forEach((item, idx) => {
-      const product = productMap[item.id];
-      if (!product) return;
-      const variantText = item.variant ? ` (${item.variant})` : "";
-      const itemPrice = fmt(item.price * item.qty);
-      message += `${idx + 1}. ${product.name}${variantText} x${item.qty} → ${itemPrice}%0A`;
-    });
-    message += `%0A📦 *Subtotal:* ${fmt(subtotal)}%0A`;
-    message += `🚚 *Envío e impuestos:* Calculados al finalizar%0A%0A`;
-    message += `🔗 Gracias por tu compra.`;
-
-    window.open(`https://wa.me/${sellerNumber}?text=${message}`, "_blank");
-  };
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     if (!open) return;
-    const onKey = (e) => e.key === "Escape" && setOpen(false);
+    const onKey = (e) => {
+      if (e.key === "Escape") setOpen(false);
+    };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [open]);
@@ -121,6 +82,48 @@ export default function CartOverlay() {
       document.body.style.overflow = "";
     };
   }, [open]);
+
+  const productMap = useMemo(() => {
+    const map = {};
+    (products || []).forEach((p) => {
+      map[p.handle] = p; // use handle
+    });
+    return map;
+  }, [products]);
+
+  const sendWhatsAppOrder = () => {
+    const customerPhone = window.prompt(
+      "Por favor, ingresa tu número de teléfono (ej: 3001234567) para que podamos contactarte:",
+      "",
+    );
+    if (!customerPhone) {
+      alert("Necesitamos tu número de teléfono para procesar el pedido.");
+      return;
+    }
+    const cleaned = customerPhone.replace(/\D/g, "");
+    if (cleaned.length < 7) {
+      alert(
+        "Por favor ingresa un número de teléfono válido (mínimo 7 dígitos).",
+      );
+      return;
+    }
+    const sellerNumber = "573153410282";
+    let message = "🛍️ *Nuevo Pedido*%0A%0A";
+    message += `📞 *Teléfono del cliente:* ${cleaned}%0A%0A`;
+    items.forEach((item, idx) => {
+      const product = productMap[item._id]; // use _id
+      if (!product) return;
+      const variantText = item.variant ? ` (${item.variant})` : "";
+      const itemPrice = fmt(item.price * item.qty);
+      message += `${idx + 1}. ${product.name}${variantText} x${item.qty} → ${itemPrice}%0A`;
+    });
+    message += `%0A📦 *Subtotal:* ${fmt(subtotal)}%0A`;
+    message += `🚚 *Envío e impuestos:* Calculados al finalizar%0A%0A`;
+    message += `🔗 Gracias por tu compra.`;
+    window.open(`https://wa.me/${sellerNumber}?text=${message}`, "_blank");
+  };
+
+  if (!mounted) return null;
 
   return (
     <>
@@ -151,7 +154,6 @@ export default function CartOverlay() {
           </>
         )}
       </button>
-
       <div
         onClick={() => setOpen(false)}
         style={{
@@ -160,7 +162,6 @@ export default function CartOverlay() {
           pointerEvents: open ? "auto" : "none",
         }}
       />
-
       <aside
         style={{
           ...s.drawer,
@@ -181,7 +182,6 @@ export default function CartOverlay() {
             ✕
           </button>
         </div>
-
         <div style={s.body}>
           {items.length === 0 ? (
             <div style={s.empty}>
@@ -203,16 +203,15 @@ export default function CartOverlay() {
           ) : (
             items.map((item) => (
               <CartItem
-                key={`${item.id}-${item.variant}`}
+                key={`${item.handle}-${item.variant ?? "novariant"}`}
                 item={item}
-                product={productMap[item.id]}
+                product={productMap[item.handle]}
                 onQty={updateQty}
                 onRemove={removeItem}
               />
             ))
           )}
         </div>
-
         {items.length > 0 && (
           <div style={s.footer}>
             <div style={s.subtotalRow}>
@@ -233,7 +232,7 @@ export default function CartOverlay() {
   );
 }
 
-// ---------- Styles (unchanged) ----------
+// ---------- Styles ----------
 const s = {
   fab: {
     position: "fixed",

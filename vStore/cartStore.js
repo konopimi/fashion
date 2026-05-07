@@ -1,14 +1,18 @@
 "use client";
-
 import { proxy, useSnapshot } from "valtio";
 
-// ----- Load initial cart from localStorage -----
 const loadCart = () => {
   if (typeof window === "undefined") return { items: [] };
   const stored = localStorage.getItem("cart_items");
   if (stored) {
     try {
-      return { items: JSON.parse(stored) };
+      const parsed = JSON.parse(stored);
+      return {
+        items: parsed.map((item) => ({
+          ...item,
+          handle: item.handle,
+        })),
+      };
     } catch {
       return { items: [] };
     }
@@ -17,30 +21,24 @@ const loadCart = () => {
 };
 
 const { items: initialItems } = loadCart();
+const cartState = proxy({ items: initialItems });
 
-// ----- Valtio proxy -----
-const cartState = proxy({
-  items: initialItems,
-});
-
-// ----- Persist helper (saves after each mutation) -----
 const persistCart = () => {
   if (typeof window !== "undefined") {
     localStorage.setItem("cart_items", JSON.stringify(cartState.items));
   }
 };
 
-// ----- Actions (mutate proxy + persist) -----
 export const cartActions = {
   addItem(product, variant, qty = 1) {
     const existing = cartState.items.find(
-      (i) => i.id === product.id && i.variant === variant,
+      (i) => i.handle === product.handle && i.variant === variant,
     );
     if (existing) {
       existing.qty += qty;
     } else {
       cartState.items.push({
-        id: product.id,
+        handle: product.handle, // store only the handle
         variant: variant || null,
         price: product.price,
         qty,
@@ -48,35 +46,31 @@ export const cartActions = {
     }
     persistCart();
   },
-
-  updateQty(id, variant, newQty) {
+  updateQty(handle, variant, newQty) {
     if (newQty < 1) return;
     const item = cartState.items.find(
-      (i) => i.id === id && i.variant === variant,
+      (i) => i.handle === handle && i.variant === variant,
     );
     if (item) {
       item.qty = newQty;
       persistCart();
     }
   },
-
-  removeItem(id, variant) {
+  removeItem(handle, variant) {
     const index = cartState.items.findIndex(
-      (i) => i.id === id && i.variant === variant,
+      (i) => i.handle === handle && i.variant === variant,
     );
     if (index !== -1) {
       cartState.items.splice(index, 1);
       persistCart();
     }
   },
-
   clearCart() {
     cartState.items = [];
     persistCart();
   },
 };
 
-// ----- Custom hook for React -----
 export function useCart() {
   const snap = useSnapshot(cartState);
   const count = snap.items.reduce((sum, i) => sum + i.qty, 0);

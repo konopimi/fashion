@@ -4,13 +4,13 @@ import { useEffect, useRef } from "react";
 import styles from "./page.module.css";
 import Link from "next/link";
 import Scroll from "../components/Scroll";
-import { useInventory } from "../vStore/inventoryStore"; // <-- use hook
+import { useAssets } from "../vStore/CORE/assets";
 
 const LABEL_H = 46;
 const MARGIN = 16;
 
 export default function Home() {
-  const { products, collections } = useInventory(); // <-- reactive data
+  const { products, collections } = useAssets(); // <-- reactive data
   const cardRefs = useRef([]);
   const labelRefs = useRef([]);
 
@@ -60,7 +60,7 @@ export default function Home() {
         <section className="collectionGrid">
           {collections.map((item, i) => (
             <div
-              key={item.id || item.title}
+              key={item._id}
               ref={(el) => (cardRefs.current[i] = el)}
               className="collectionCard"
             >

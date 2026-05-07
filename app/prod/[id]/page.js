@@ -2,15 +2,15 @@
 
 import { useParams } from "next/navigation";
 import { useState } from "react";
-import { useInventory } from "../../../vStore/inventoryStore";
+import { useAssets, getAssetByHandle } from "../../../vStore/CORE/assets";
 import { useCart } from "../../../vStore/cartStore";
 import Scroll from "../../../components/Scroll";
 
 export default function ProductPage() {
   const params = useParams();
   const id = Array.isArray(params.id) ? params.id[0] : params.id;
-  const { getItemById, products } = useInventory();
-  const product = getItemById(id);
+  const { products } = useAssets();
+  const product = getAssetByHandle("products", id); // id here is actually the handle slug
   const { addItem } = useCart();
   const [quantity, setQuantity] = useState(1);
 
