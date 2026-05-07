@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
 const leftItems = ["Comprar", "Colecciones", "Novias", "Más"];
-const rightItems = ["🔎", "Carrito"];
+const rightItems = ["🔎"];
 
 export default function Top() {
   const router = useRouter();
