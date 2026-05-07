@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
 import { useCart } from "../vStore/cartStore";
-import { useAssets } from "../vStore/CORE/assets"; // changed import
+import { useAssets } from "../vStore/CORE/assets";
 
 const fmt = (n) =>
   new Intl.NumberFormat("es-CO", {
@@ -40,14 +40,14 @@ function CartItem({ item, product, onQty, onRemove }) {
             <span style={s.qty}>{item.qty}</span>
             <button
               style={s.stepBtn}
-              nClick={() => onQty(item.handle, item.variant, item.qty + 1)}
+              onClick={() => onQty(item.handle, item.variant, item.qty + 1)}
             >
               +
             </button>
           </div>
           <button
             style={s.removeBtn}
-            onClick={() => onRemove(item._id, item.variant)}
+            onClick={() => onRemove(item.handle, item.variant)}
           >
             Eliminar
           </button>
@@ -61,7 +61,7 @@ export default function CartOverlay() {
   const [open, setOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
   const { items, count, subtotal, updateQty, removeItem } = useCart();
-  const { products } = useAssets(); // changed hook
+  const { products } = useAssets();
 
   useEffect(() => {
     setMounted(true);
@@ -86,7 +86,8 @@ export default function CartOverlay() {
   const productMap = useMemo(() => {
     const map = {};
     (products || []).forEach((p) => {
-      map[p.handle] = p; // use handle
+      // Asumimos que cada producto tiene un campo _id que coincide con item._id del carrito
+      map[p.handle] = p;
     });
     return map;
   }, [products]);
@@ -102,16 +103,15 @@ export default function CartOverlay() {
     }
     const cleaned = customerPhone.replace(/\D/g, "");
     if (cleaned.length < 7) {
-      alert(
-        "Por favor ingresa un número de teléfono válido (mínimo 7 dígitos).",
-      );
+      // alert(
+      //   "Por favor ingresa un número de teléfono válido (mínimo 7 dígitos).");
       return;
     }
     const sellerNumber = "573153410282";
     let message = "🛍️ *Nuevo Pedido*%0A%0A";
     message += `📞 *Teléfono del cliente:* ${cleaned}%0A%0A`;
     items.forEach((item, idx) => {
-      const product = productMap[item._id]; // use _id
+      const product = productMap[item.handle];
       if (!product) return;
       const variantText = item.variant ? ` (${item.variant})` : "";
       const itemPrice = fmt(item.price * item.qty);
@@ -201,9 +201,9 @@ export default function CartOverlay() {
               <p style={s.emptyText}>Tu carrito está vacío.</p>
             </div>
           ) : (
-            items.map((item) => (
+            items.map((item, index) => (
               <CartItem
-                key={`${item.handle}-${item.variant ?? "novariant"}`}
+                key={`${item.handle}-${item.variant ?? "novariant"}-${index}`}
                 item={item}
                 product={productMap[item.handle]}
                 onQty={updateQty}
@@ -232,7 +232,7 @@ export default function CartOverlay() {
   );
 }
 
-// ---------- Styles ----------
+// Estilos (sin cambios, los mismos que tenías)
 const s = {
   fab: {
     position: "fixed",

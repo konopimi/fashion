@@ -12,6 +12,30 @@
 
 html {
   height: 100%;
+  /* MINIMALISTIC SLIM GRAY SCROLLBAR - FIREFOX (both axes) */
+  scrollbar-width: thin;
+  scrollbar-color: #888888 transparent;
+}
+
+/* MINIMALISTIC SLIM GRAY SCROLLBAR - WEBKIT (CHROME, EDGE, SAFARI) */
+/* Vertical scrollbar width */
+html::-webkit-scrollbar {
+  width: 3px;
+  height: 3px;
+  /* <-- horizontal scrollbar height */
+}
+
+html::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+html::-webkit-scrollbar-thumb {
+  background-color: #888888;
+  border-radius: 999px;
+}
+
+html::-webkit-scrollbar-thumb:hover {
+  background-color: #aaaaaa;
 }
 
 html,
@@ -86,28 +110,32 @@ a {
 
 .scroll {
   overflow-x: auto;
+  /* enables horizontal scrollbar */
+  /* MINIMALISTIC SLIM GRAY SCROLLBAR FOR .SCROLL CONTAINERS - FIREFOX */
   scrollbar-width: thin;
-  /* Firefox */
-  scrollbar-color: rgba(100, 100, 100, 0.3) transparent;
+  scrollbar-color: #888888 transparent;
 }
 
+/* MINIMALISTIC SLIM GRAY SCROLLBAR FOR .SCROLL - WEBKIT */
+/* Both vertical (if any) and horizontal scrollbars inside .scroll */
 .scroll::-webkit-scrollbar {
-  height: 6px;
-  /* thin horizontal bar */
+  width: 3px;
+  /* vertical bar width */
+  height: 3px;
+  /* horizontal bar height */
 }
 
 .scroll::-webkit-scrollbar-track {
   background: transparent;
-  /* invisible track */
 }
 
 .scroll::-webkit-scrollbar-thumb {
-  background: rgba(0, 0, 0, 0.3);
+  background-color: #888888;
   border-radius: 999px;
 }
 
 .scroll::-webkit-scrollbar-thumb:hover {
-  background: rgba(0, 0, 0, 0.5);
+  background-color: #aaaaaa;
 }
 
 .bottomBS h4 {
@@ -135,14 +163,10 @@ button {
   appearance: none;
   border: 0;
   background: transparent;
-
   color: inherit;
   font: inherit;
-
   cursor: pointer;
-
   letter-spacing: 0.02em;
-
   transition:
     opacity 180ms ease,
     transform 180ms ease;

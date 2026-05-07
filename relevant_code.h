@@ -175,14 +175,14 @@ export default function RootLayout({ children }) {
 "use client";
 import { useParams } from "next/navigation";
 import { useState } from "react";
-import { useAssets, getAsset } from "../../../vStore/CORE/assets";
+import { useAssets, getAssetByHandle } from "../../../vStore/CORE/assets";
 import { useCart } from "../../../vStore/cartStore";
 import Scroll from "../../../components/Scroll";
 export default function ProductPage() {
   const params = useParams();
   const id = Array.isArray(params.id) ? params.id[0] : params.id;
   const { products } = useAssets();
-  const product = getAsset("products", id);
+  const product = getAssetByHandle("products", id); // id here is actually the handle slug
   const { addItem } = useCart();
   const [quantity, setQuantity] = useState(1);
   if (!product) return <div>Producto no encontrado</div>;
@@ -254,7 +254,7 @@ export default function ProductPage() {
 }
 //===== app/dashboard/page.js =====
 "use client";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import {
   useAssets,
   addProduct,
@@ -265,257 +265,642 @@ import {
   deleteCollection,
   assignCollection,
 } from "../../vStore/CORE/assets";
+// Helpers
+const fmtPrice = (price) =>
+  new Intl.NumberFormat("es-CO", {
+    style: "currency",
+    currency: "COP",
+    maximumFractionDigits: 0,
+  }).format(price);
+const toHandle = (name) =>
+  name
+    .toLowerCase()
+    .replace(/\s+/g, "-")
+    .replace(/[^a-z0-9-]/g, "");
 export default function AdminDashboard() {
-  const { products, collections } = useAssets();
+  const { products, collections, loading, error } = useAssets();
+  // ----- Tab state -----
+  const [activeTab, setActiveTab] = useState("products");
+  // ----- Modal state -----
+  const [modalOpen, setModalOpen] = useState(false);
+  const [modalType, setModalType] = useState("product"); // 'product' | 'collection'
+  // ----- Product form state -----
   const [newProductName, setNewProductName] = useState("");
   const [newProductPrice, setNewProductPrice] = useState("");
   const [newProductSrc, setNewProductSrc] = useState("");
+  // ----- Collection form state -----
   const [newCollectionName, setNewCollectionName] = useState("");
+  const [newCollectionSrc, setNewCollectionSrc] = useState("");
+  // ----- Inline editing state (for products table) -----
+  const [editingId, setEditingId] = useState(null);
+  const [editName, setEditName] = useState("");
+  const [editPrice, setEditPrice] = useState("");
+  const [editSrc, setEditSrc] = useState("");
+  // ----- Search -----
+  const [search, setSearch] = useState("");
+  // ----- Filtered products -----
+  const filteredProducts = useMemo(() => {
+    if (!search.trim()) return products;
+    const q = search.toLowerCase();
+    return products.filter(
+      (p) =>
+        p.name.toLowerCase().includes(q) || (p.handle && p.handle.includes(q)),
+    );
+  }, [products, search]);
+  // ----- Modal handlers -----
+  const openModal = (type) => {
+    setModalType(type);
+    resetForm();
+    setModalOpen(true);
+  };
+  const closeModal = () => {
+    setModalOpen(false);
+  };
+  const resetForm = () => {
+    setNewProductName("");
+    setNewProductPrice("");
+    setNewProductSrc("");
+    setNewCollectionName("");
+    setNewCollectionSrc("");
+  };
   const handleAddProduct = () => {
     if (!newProductName) return;
     addProduct({
-      id: Date.now().toString(),
       name: newProductName,
+      handle: toHandle(newProductName),
       price: parseFloat(newProductPrice) || 0,
       src: newProductSrc || null,
       variants: [],
       collectionId: null,
     });
-    setNewProductName("");
-    setNewProductPrice("");
-    setNewProductSrc("");
+    closeModal();
   };
   const handleAddCollection = () => {
     if (!newCollectionName) return;
     addCollection({
-      id: Date.now().toString(),
       name: newCollectionName,
-      href: `/collections/${newCollectionName.toLowerCase().replace(/\s/g, "-")}`,
-      src: "",
+      handle: toHandle(newCollectionName),
+      href: `/collections/${toHandle(newCollectionName)}`,
+      src: newCollectionSrc || null,
     });
-    setNewCollectionName("");
+    closeModal();
   };
+  // Inline edit handlers
+  const startEditing = (product) => {
+    setEditingId(product._id);
+    setEditName(product.name);
+    setEditPrice(product.price);
+    setEditSrc(product.src || "");
+  };
+  const cancelEditing = () => setEditingId(null);
+  const saveEditing = () => {
+    if (!editingId) return;
+    updateProduct(editingId, {
+      name: editName,
+      price: parseFloat(editPrice) || 0,
+      src: editSrc || null,
+    });
+    setEditingId(null);
+  };
+  const handleDeleteProduct = (id) => deleteProduct(id);
+  const handleDeleteCollection = (id) => deleteCollection(id);
+  // ----- Styles -----
+  const s = {
+    topbar: {
+      background: "rgba(127,127,127,0.62)",
+      padding: "0.8rem 2rem",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "space-between",
+      fontSize: 14,
+    },
+    tabBar: {
+      display: "flex",
+      paddingLeft: "2rem",
+      background: "rgba(127,127,127,0.62)",
+    },
+    tab: (isActive) => ({
+      padding: "0.7rem 1.2rem",
+      cursor: "pointer",
+      fontWeight: isActive ? 600 : 400,
+      color: isActive ? "teal" : "",
+      borderBottom: isActive ? "2px solid teal" : "2px solid transparent",
+      background: "none",
+      fontSize: 14,
+      transition: "color 0.2s",
+    }),
+    content: {
+      padding: "2rem",
+      maxWidth: 1200,
+      margin: "0 auto",
+    },
+    // Modal styles
+    modalBackdrop: {
+      position: "fixed",
+      inset: 0,
+      background: "rgba(0,0,0,0.4)",
+      backdropFilter: "blur(4px)",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      zIndex: 1000,
+    },
+    modalCard: {
+      background: "rgba(127,127,127,0.62)",
+      borderRadius: 8,
+      padding: "2rem",
+      width: "min(400px, 90vw)",
+      boxShadow: "0 8px 30px rgba(0,0,0,0.15)",
+    },
+    input: {
+      display: "block",
+      width: "100%",
+      marginBottom: 8,
+      padding: "6px 8px",
+      border: "1px solid #ccc",
+      borderRadius: 4,
+      fontSize: 14,
+    },
+    btn: {
+      padding: "6px 12px",
+      border: "none",
+      borderRadius: 4,
+      cursor: "pointer",
+      fontSize: 14,
+    },
+    btnPrimary: {
+      background: "#0070f3",
+      color: "#fff",
+    },
+    btnDanger: {
+      background: "#dc2626",
+      color: "#fff",
+    },
+    btnGhost: {
+      background: "transparent",
+      color: "#0070f3",
+      textDecoration: "underline",
+    },
+    table: {
+      width: "100%",
+      borderCollapse: "collapse",
+    },
+    th: {
+      textAlign: "left",
+      borderBottom: "1px solid #ddd",
+      padding: 8,
+      fontWeight: 500,
+      fontSize: 13,
+    },
+    td: {
+      padding: 8,
+      borderBottom: "1px solid #eee",
+      verticalAlign: "middle",
+    },
+    thumbnail: {
+      width: 40,
+      height: 40,
+      objectFit: "cover",
+      borderRadius: 4,
+      background: "#f0f0f0",
+    },
+    searchInput: {
+      marginBottom: "1rem",
+      padding: "6px 8px",
+      border: "1px solid #ccc",
+      borderRadius: 4,
+      width: "100%",
+      maxWidth: 300,
+    },
+  };
+  // ----- Loading / Error -----
+  if (loading) return <div style={{ padding: "2rem" }}>Cargando...</div>;
+  if (error) return <div style={{ padding: "2rem" }}>Error: {error}</div>;
   return (
-    <div
-      style={{
-        padding: "2rem",
-        fontFamily: "sans-serif",
-        maxWidth: 1200,
-        margin: "0 auto",
-      }}
-    >
-      <h1>Dashboard – Productos y Colecciones</h1>
-      <div style={{ display: "flex", gap: "2rem", flexWrap: "wrap" }}>
-        {/* Products section */}
-        <div style={{ flex: 2, minWidth: 300 }}>
-          <h2>Productos</h2>
-          <div
-            style={{
-              marginBottom: "1rem",
-              border: "1px solid #ccc",
-              padding: "1rem",
-              borderRadius: 8,
-            }}
-          >
-            <h3>➕ Agregar producto</h3>
-            <input
-              type="text"
-              placeholder="Nombre"
-              value={newProductName}
-              onChange={(e) => setNewProductName(e.target.value)}
+    <div style={{ minHeight: "100vh", fontFamily: "sans-serif" }}>
+      {/* ---- Top bar ---- */}
+      <div style={s.topbar}>
+        <span style={{ fontWeight: 600 }}>Panel de administración</span>
+        <span style={{ color: "#888" }}>ASHERALEPH</span>
+      </div>
+      {/* ---- Tab navigation ---- */}
+      <div style={s.tabBar}>
+        <button
+          style={s.tab(activeTab === "products")}
+          onClick={() => setActiveTab("products")}
+        >
+          Productos
+        </button>
+        <button
+          style={s.tab(activeTab === "collections")}
+          onClick={() => setActiveTab("collections")}
+        >
+          Colecciones
+        </button>
+      </div>
+      {/* ---- Active tab content ---- */}
+      <div style={s.content}>
+        {activeTab === "products" && (
+          <>
+            <div
               style={{
-                display: "block",
-                marginBottom: 8,
-                width: "100%",
-                padding: 6,
-              }}
-            />
-            <input
-              type="number"
-              placeholder="Precio (COP)"
-              value={newProductPrice}
-              onChange={(e) => setNewProductPrice(e.target.value)}
-              style={{
-                display: "block",
-                marginBottom: 8,
-                width: "100%",
-                padding: 6,
-              }}
-            />
-            <input
-              type="text"
-              placeholder="URL de imagen"
-              value={newProductSrc}
-              onChange={(e) => setNewProductSrc(e.target.value)}
-              style={{
-                display: "block",
-                marginBottom: 8,
-                width: "100%",
-                padding: 6,
-              }}
-            />
-            <button
-              onClick={handleAddProduct}
-              style={{
-                background: "#0070f3",
-                color: "white",
-                padding: "6px 12px",
-                border: "none",
-                borderRadius: 4,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                marginBottom: "1rem",
               }}
             >
-              Guardar producto
-            </button>
-          </div>
-          <table style={{ width: "100%", borderCollapse: "collapse" }}>
-            <thead>
-              <tr>
-                <th
-                  style={{
-                    textAlign: "left",
-                    borderBottom: "1px solid #ddd",
-                    padding: 8,
-                  }}
-                >
-                  Nombre
-                </th>
-                <th
-                  style={{
-                    textAlign: "left",
-                    borderBottom: "1px solid #ddd",
-                    padding: 8,
-                  }}
-                >
-                  Precio
-                </th>
-                <th
-                  style={{
-                    textAlign: "left",
-                    borderBottom: "1px solid #ddd",
-                    padding: 8,
-                  }}
-                >
-                  Colección
-                </th>
-                <th
-                  style={{
-                    textAlign: "left",
-                    borderBottom: "1px solid #ddd",
-                    padding: 8,
-                  }}
-                >
-                  Acciones
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {products.map((product) => (
-                <tr key={product._id}>
-                  <td style={{ padding: 8 }}>{product.name}</td>
-                  <td style={{ padding: 8 }}>
-                    ${product.price?.toLocaleString("es-CO")}
-                  </td>
-                  <td style={{ padding: 8 }}>
-                    <select
-                      value={product.collectionId || ""}
-                      onChange={(e) =>
-                        assignCollection(product._id, e.target.value || null)
-                      }
-                    >
-                      <option value="">-- Sin colección --</option>
-                      {collections.map((col) => (
-                        <option key={col._id} value={col._id}>
-                          {col.name}
-                        </option>
-                      ))}
-                    </select>
-                  </td>
-                  <td style={{ padding: 8 }}>
+              <h2 style={{ margin: 0 }}>Productos</h2>
+              <button
+                onClick={() => openModal("product")}
+                style={{ ...s.btn, ...s.btnPrimary }}
+              >
+                + Agregar
+              </button>
+            </div>
+            {/* Search */}
+            <input
+              type="text"
+              placeholder="Buscar producto..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              style={s.searchInput}
+            />
+            {/* Products table */}
+            {filteredProducts.length === 0 ? (
+              <div style={{ padding: "2rem 0", color: "#888" }}>
+                No hay productos aún.
+              </div>
+            ) : (
+              <div style={{ overflowX: "auto" }}>
+                <table style={s.table}>
+                  <thead>
+                    <tr>
+                      <th style={s.th}></th>
+                      <th style={s.th}>Nombre</th>
+                      <th style={s.th}>Precio</th>
+                      <th style={s.th}>Colección</th>
+                      <th style={s.th}>Handle</th>
+                      <th style={s.th}>Acciones</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredProducts.map((product) =>
+                      editingId === product._id ? (
+                        <tr key={product._id}>
+                          <td style={s.td}>
+                            <input
+                              type="text"
+                              value={editSrc}
+                              onChange={(e) => setEditSrc(e.target.value)}
+                              style={{
+                                ...s.input,
+                                marginBottom: 0,
+                                width: 120,
+                              }}
+                              placeholder="URL imagen"
+                            />
+                          </td>
+                          <td style={s.td}>
+                            <input
+                              type="text"
+                              value={editName}
+                              onChange={(e) => setEditName(e.target.value)}
+                              style={{ ...s.input, marginBottom: 0 }}
+                            />
+                          </td>
+                          <td style={s.td}>
+                            <input
+                              type="number"
+                              value={editPrice}
+                              onChange={(e) => setEditPrice(e.target.value)}
+                              style={{
+                                ...s.input,
+                                marginBottom: 0,
+                                width: 100,
+                              }}
+                            />
+                          </td>
+                          <td style={s.td}>—</td>
+                          <td style={s.td}>{product.handle}</td>
+                          <td style={s.td}>
+                            <button
+                              onClick={saveEditing}
+                              style={{
+                                ...s.btn,
+                                ...s.btnPrimary,
+                                marginRight: 6,
+                              }}
+                            >
+                              Guardar
+                            </button>
+                            <button
+                              onClick={cancelEditing}
+                              style={{ ...s.btn, ...s.btnGhost }}
+                            >
+                              Cancelar
+                            </button>
+                          </td>
+                        </tr>
+                      ) : (
+                        <tr key={product._id}>
+                          <td style={s.td}>
+                            {product.src ? (
+                              <img
+                                src={product.src}
+                                alt={product.name}
+                                style={s.thumbnail}
+                              />
+                            ) : (
+                              <div style={s.thumbnail} />
+                            )}
+                          </td>
+                          <td
+                            style={{ ...s.td, cursor: "pointer" }}
+                            onClick={() => startEditing(product)}
+                          >
+                            {product.name}
+                          </td>
+                          <td style={s.td}>{fmtPrice(product.price)}</td>
+                          <td style={s.td}>
+                            <select
+                              value={product.collectionId || ""}
+                              onChange={(e) =>
+                                assignCollection(
+                                  product._id,
+                                  e.target.value || null,
+                                )
+                              }
+                              style={{
+                                padding: "4px 6px",
+                                borderRadius: 4,
+                                border: "1px solid #ccc",
+                                fontSize: 13,
+                              }}
+                            >
+                              <option value="">— Sin colección —</option>
+                              {collections.map((col) => (
+                                <option key={col._id} value={col._id}>
+                                  {col.name}
+                                </option>
+                              ))}
+                            </select>
+                          </td>
+                          <td
+                            style={{
+                              ...s.td,
+                              fontFamily: "monospace",
+                              fontSize: 12,
+                            }}
+                          >
+                            {product.handle}
+                          </td>
+                          <td style={s.td}>
+                            <button
+                              onClick={() => startEditing(product)}
+                              style={{
+                                ...s.btn,
+                                ...s.btnGhost,
+                                marginRight: 8,
+                              }}
+                            >
+                              Editar
+                            </button>
+                            <button
+                              onClick={() => handleDeleteProduct(product._id)}
+                              style={{ ...s.btn, ...s.btnDanger }}
+                            >
+                              Eliminar
+                            </button>
+                          </td>
+                        </tr>
+                      ),
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </>
+        )}
+        {activeTab === "collections" && (
+          <>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                marginBottom: "1rem",
+              }}
+            >
+              <h2 style={{ margin: 0 }}>Colecciones</h2>
+              <button
+                onClick={() => openModal("collection")}
+                style={{ ...s.btn, ...s.btnPrimary }}
+              >
+                + Agregar
+              </button>
+            </div>
+            {collections.length === 0 ? (
+              <div style={{ padding: "2rem 0", color: "#888" }}>
+                No hay colecciones aún.
+              </div>
+            ) : (
+              <ul style={{ listStyle: "none", padding: 0 }}>
+                {collections.map((col) => (
+                  <li
+                    key={col._id}
+                    style={{
+                      borderBottom: "1px solid #eee",
+                      padding: "8px 0",
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                    }}
+                  >
+                    <div>
+                      <div style={{ fontWeight: 500 }}>{col.name}</div>
+                      <div style={{ fontSize: 11, color: "#888" }}>
+                        {col.handle}
+                      </div>
+                    </div>
                     <button
-                      onClick={() => deleteProduct(product._id)}
-                      style={{
-                        background: "#dc2626",
-                        color: "white",
-                        border: "none",
-                        padding: "4px 8px",
-                        borderRadius: 4,
-                      }}
+                      onClick={() => handleDeleteCollection(col._id)}
+                      style={{ ...s.btn, ...s.btnDanger }}
                     >
                       Eliminar
                     </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-        {/* Collections section */}
-        <div style={{ flex: 1, minWidth: 250 }}>
-          <h2>Colecciones</h2>
-          <div
-            style={{
-              marginBottom: "1rem",
-              border: "1px solid #ccc",
-              padding: "1rem",
-              borderRadius: 8,
-            }}
-          >
-            <h3>➕ Agregar colección</h3>
-            <input
-              type="text"
-              placeholder="Nombre de colección"
-              value={newCollectionName}
-              onChange={(e) => setNewCollectionName(e.target.value)}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </>
+        )}
+      </div>
+      {/* ----- Modal (overlay) ----- */}
+      {modalOpen && (
+        <div style={s.modalBackdrop} onClick={closeModal}>
+          <div style={s.modalCard} onClick={(e) => e.stopPropagation()}>
+            <div
               style={{
-                display: "block",
-                marginBottom: 8,
-                width: "100%",
-                padding: 6,
-              }}
-            />
-            <button
-              onClick={handleAddCollection}
-              style={{
-                background: "#0070f3",
-                color: "white",
-                padding: "6px 12px",
-                border: "none",
-                borderRadius: 4,
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                marginBottom: "1.5rem",
               }}
             >
-              Guardar colección
-            </button>
-          </div>
-          <ul style={{ listStyle: "none", padding: 0 }}>
-            {collections.map((col) => (
-              <li
-                key={col._id}
+              <h3 style={{ margin: 0 }}>
+                {modalType === "product" ? "Nuevo producto" : "Nueva colección"}
+              </h3>
+              <button
+                onClick={closeModal}
                 style={{
-                  borderBottom: "1px solid #eee",
-                  padding: "8px 0",
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
+                  background: "none",
+                  border: "none",
+                  fontSize: 20,
+                  cursor: "pointer",
+                  lineHeight: 1,
                 }}
               >
-                <span>{col.name}</span>
+                ✕
+              </button>
+            </div>
+            {modalType === "product" && (
+              <>
+                <input
+                  type="text"
+                  placeholder="Nombre del producto"
+                  value={newProductName}
+                  onChange={(e) => setNewProductName(e.target.value)}
+                  style={s.input}
+                />
+                <input
+                  type="number"
+                  placeholder="Precio (COP)"
+                  value={newProductPrice}
+                  onChange={(e) => setNewProductPrice(e.target.value)}
+                  style={s.input}
+                />
+                <input
+                  type="text"
+                  placeholder="URL de imagen"
+                  value={newProductSrc}
+                  onChange={(e) => setNewProductSrc(e.target.value)}
+                  style={s.input}
+                />
+                {/* ---- IMAGE PREVIEW (product) ---- */}
+                {newProductSrc && (
+                  <img
+                    src={newProductSrc}
+                    alt="Preview"
+                    style={{
+                      width: "100%",
+                      maxHeight: 200,
+                      objectFit: "contain",
+                      borderRadius: 4,
+                      marginBottom: 12,
+                      background: "#f0f0f0",
+                    }}
+                    onError={(e) => {
+                      e.target.style.display = "none";
+                    }}
+                  />
+                )}
+                {newProductName && (
+                  <div
+                    style={{ fontSize: 12, marginBottom: 12, color: "#666" }}
+                  >
+                    Handle: <code>{toHandle(newProductName)}</code>
+                  </div>
+                )}
                 <button
-                  onClick={() => deleteCollection(col._id)}
-                  style={{
-                    background: "#dc2626",
-                    color: "white",
-                    border: "none",
-                    padding: "2px 8px",
-                    borderRadius: 4,
-                  }}
+                  onClick={handleAddProduct}
+                  style={{ ...s.btn, ...s.btnPrimary, width: "100%" }}
                 >
-                  Eliminar
+                  Guardar producto
                 </button>
-              </li>
-            ))}
-          </ul>
+              </>
+            )}
+            {modalType === "collection" && (
+              <>
+                <input
+                  type="text"
+                  placeholder="Nombre de colección"
+                  value={newCollectionName}
+                  onChange={(e) => setNewCollectionName(e.target.value)}
+                  style={s.input}
+                />
+                <input
+                  type="text"
+                  placeholder="URL de imagen (opcional)"
+                  value={newCollectionSrc}
+                  onChange={(e) => setNewCollectionSrc(e.target.value)}
+                  style={s.input}
+                />
+                {/* ---- IMAGE PREVIEW (collection) ---- */}
+                {newCollectionSrc && (
+                  <img
+                    src={newCollectionSrc}
+                    alt="Preview"
+                    style={{
+                      width: "100%",
+                      maxHeight: 200,
+                      objectFit: "contain",
+                      borderRadius: 4,
+                      marginBottom: 12,
+                      background: "#f0f0f0",
+                    }}
+                    onError={(e) => {
+                      e.target.style.display = "none";
+                    }}
+                  />
+                )}
+                {newCollectionName && (
+                  <div
+                    style={{ fontSize: 12, marginBottom: 12, color: "#666" }}
+                  >
+                    Handle: <code>{toHandle(newCollectionName)}</code>
+                  </div>
+                )}
+                <button
+                  onClick={handleAddCollection}
+                  style={{ ...s.btn, ...s.btnPrimary, width: "100%" }}
+                >
+                  Guardar colección
+                </button>
+              </>
+            )}
+          </div>
         </div>
-      </div>
+      )}
+      {/* responsive table for mobile */}
+      <style jsx global>{`
+        @media (max-width: 600px) {
+          table,
+          thead,
+          tbody,
+          th,
+          td,
+          tr {
+            display: block;
+          }
+          thead tr {
+            display: none;
+          }
+          td {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 8px;
+            border-bottom: 1px solid #f0f0f0;
+          }
+          td::before {
+            content: attr(data-label);
+            font-weight: 500;
+            margin-right: 8px;
+            color: #555;
+            font-size: 13px;
+          }
+        }
+      `}</style>
     </div>
   );
 }
@@ -538,9 +923,9 @@ export default function CollectionPage() {
   const title = Array.isArray(slug)
     ? slug[0]
     : slug
-        .split("-")
-        .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-        .join(" ");
+      .split("-")
+      .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+      .join(" ");
   // Shuffle products once per render (for variety)
   const shuffledProducts = useMemo(() => {
     if (!products?.length) return [];
@@ -573,8 +958,8 @@ export default function CollectionPage() {
       <div className="mosaicGrid">
         {shuffledProducts.map((product) => (
           <Link
-            key={product._id}
-            href={`/prod/${product._id}`}
+            key={product._id} // still good
+            href={`/prod/${product.handle}`} // navigate with handle
             className="mosaicCard"
           >
             <div className="mosaicImgWrapper">
@@ -991,8 +1376,8 @@ export default function Scroll({ carouselItems = [] }) {
       <div style={{ display: "flex" }}>
         {carouselItems.map((item) => (
           <div
-            key={String(item._id)}
-            data-item-id={item._id}
+            key={item._id} // React key is fine with _id
+            data-item-id={item.handle} // use handle for the link
             style={{
               overflow: "hidden",
               minWidth: "300px",
@@ -1024,7 +1409,7 @@ export default function Scroll({ carouselItems = [] }) {
 "use client";
 import { useEffect, useMemo, useState } from "react";
 import { useCart } from "../vStore/cartStore";
-import { useAssets } from "../vStore/CORE/assets"; // changed import
+import { useAssets } from "../vStore/CORE/assets";
 const fmt = (n) =>
   new Intl.NumberFormat("es-CO", {
     style: "currency",
@@ -1081,7 +1466,7 @@ export default function CartOverlay() {
   const [open, setOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
   const { items, count, subtotal, updateQty, removeItem } = useCart();
-  const { products } = useAssets(); // changed hook
+  const { products } = useAssets();
   useEffect(() => {
     setMounted(true);
   }, []);
@@ -1102,7 +1487,8 @@ export default function CartOverlay() {
   const productMap = useMemo(() => {
     const map = {};
     (products || []).forEach((p) => {
-      map[p._id] = p; // use _id
+      // Asumimos que cada producto tiene un campo _id que coincide con item._id del carrito
+      map[p._id] = p;
     });
     return map;
   }, [products]);
@@ -1117,16 +1503,15 @@ export default function CartOverlay() {
     }
     const cleaned = customerPhone.replace(/\D/g, "");
     if (cleaned.length < 7) {
-      alert(
-        "Por favor ingresa un número de teléfono válido (mínimo 7 dígitos).",
-      );
+      // alert(
+      //   "Por favor ingresa un número de teléfono válido (mínimo 7 dígitos).");
       return;
     }
     const sellerNumber = "573153410282";
     let message = "🛍️ *Nuevo Pedido*%0A%0A";
     message += `📞 *Teléfono del cliente:* ${cleaned}%0A%0A`;
     items.forEach((item, idx) => {
-      const product = productMap[item._id]; // use _id
+      const product = productMap[item._id];
       if (!product) return;
       const variantText = item.variant ? ` (${item.variant})` : "";
       const itemPrice = fmt(item.price * item.qty);
@@ -1216,9 +1601,9 @@ export default function CartOverlay() {
           ) : (
             items.map((item) => (
               <CartItem
-                key={`${item._id || item.id}-${item.variant ?? "novariant"}`}
+                key={`${item._id}-${item.variant ?? "novariant"}`}
                 item={item}
-                product={productMap[item._id || item.id]} // also safe for old items
+                product={productMap[item._id]}
                 onQty={updateQty}
                 onRemove={removeItem}
               />
@@ -1244,7 +1629,7 @@ export default function CartOverlay() {
     </>
   );
 }
-// ---------- Styles ----------
+// Estilos (sin cambios, los mismos que tenías)
 const s = {
   fab: {
     position: "fixed",
@@ -1533,7 +1918,7 @@ export default function LayoutWrapper({ children }) {
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 const leftItems = ["Comprar", "Colecciones", "Novias", "Más"];
-const rightItems = ["🔎", "Carrito"];
+const rightItems = ["🔎"];
 export default function Top() {
   const router = useRouter();
   const topbarRef = useRef(null);
@@ -2102,6 +2487,26 @@ export default function Bottom() {
 }
 html {
   height: 100%;
+  /* MINIMALISTIC SLIM GRAY SCROLLBAR - FIREFOX (both axes) */
+  scrollbar-width: thin;
+  scrollbar-color: #888888 transparent;
+}
+/* MINIMALISTIC SLIM GRAY SCROLLBAR - WEBKIT (CHROME, EDGE, SAFARI) */
+/* Vertical scrollbar width */
+html::-webkit-scrollbar {
+  width: 3px;
+  height: 3px;
+  /* <-- horizontal scrollbar height */
+}
+html::-webkit-scrollbar-track {
+  background: transparent;
+}
+html::-webkit-scrollbar-thumb {
+  background-color: #888888;
+  border-radius: 999px;
+}
+html::-webkit-scrollbar-thumb:hover {
+  background-color: #aaaaaa;
 }
 html,
 body {
@@ -2163,24 +2568,28 @@ a {
 }
 .scroll {
   overflow-x: auto;
+  /* enables horizontal scrollbar */
+  /* MINIMALISTIC SLIM GRAY SCROLLBAR FOR .SCROLL CONTAINERS - FIREFOX */
   scrollbar-width: thin;
-  /* Firefox */
-  scrollbar-color: rgba(100, 100, 100, 0.3) transparent;
+  scrollbar-color: #888888 transparent;
 }
+/* MINIMALISTIC SLIM GRAY SCROLLBAR FOR .SCROLL - WEBKIT */
+/* Both vertical (if any) and horizontal scrollbars inside .scroll */
 .scroll::-webkit-scrollbar {
-  height: 6px;
-  /* thin horizontal bar */
+  width: 3px;
+  /* vertical bar width */
+  height: 3px;
+  /* horizontal bar height */
 }
 .scroll::-webkit-scrollbar-track {
   background: transparent;
-  /* invisible track */
 }
 .scroll::-webkit-scrollbar-thumb {
-  background: rgba(0, 0, 0, 0.3);
+  background-color: #888888;
   border-radius: 999px;
 }
 .scroll::-webkit-scrollbar-thumb:hover {
-  background: rgba(0, 0, 0, 0.5);
+  background-color: #aaaaaa;
 }
 .bottomBS h4 {
   margin-bottom: 20px;
@@ -2369,176 +2778,19 @@ a.secondary {
     --button-secondary-border: #1a1a1a;
   }
 }
-//===== vStore/inventoryStore.js =====
-"use client";
-import { proxy, useSnapshot } from "valtio";
-// ----- Default data (seed) -----
-const defaultProducts = [
-  {
-    id: "sabina-dress",
-    name: "Sabina Dress",
-    src: "https://co.silviatcherassi.com/cdn/shop/files/91_SabinaDress_White__PRESPRING2026_FRONT.jpg?v=1771536063&width=1000",
-    price: 2100000,
-    variants: [],
-    collectionId: null,
-  },
-  {
-    id: "rowan-dress",
-    name: "Rowan Dress",
-    src: "https://co.silviatcherassi.com/cdn/shop/files/89_RowanDress_White__PRESPRING2026_FRONT.jpg?v=1771535925&width=1000",
-    price: 2100000,
-    variants: [],
-    collectionId: null,
-  },
-  {
-    id: "norma-dress",
-    name: "Norma Dress",
-    src: "https://co.silviatcherassi.com/cdn/shop/files/80___Norma_Dress___Vanilla___PRE_SPRING_2026_FRONT_4b5ba98e-1241-4ad1-a9e1-05181b9a069e.jpg?v=1757978129&width=1000",
-    price: 2100000,
-    variants: [],
-    collectionId: null,
-  },
-  {
-    id: "naga-dress",
-    name: "Naga Dress",
-    src: "https://co.silviatcherassi.com/cdn/shop/files/55___Naga_Dress___Tangerine___PRE_SPRING_2026_FRONT.jpg?v=1757883456&width=1000",
-    price: 2100000,
-    variants: [],
-    collectionId: null,
-  },
-  {
-    id: "asher-dress",
-    name: "Asher Dress",
-    src: null,
-    price: 2100000,
-    variants: [],
-    collectionId: null,
-  },
-];
-const defaultCollections = [
-  {
-    id: "col1",
-    name: "Collection 1",
-    href: "/collections/collection-1",
-    src: "https://co.silviatcherassi.com/cdn/shop/files/1402-3_1.jpg?v=1775769358&width=1500",
-  },
-  {
-    id: "col2",
-    name: "Collection 2",
-    href: "/collections/collection-2",
-    src: "https://co.silviatcherassi.com/cdn/shop/files/2_f3b3831b-f41c-4f32-8a48-d5b3c045bac4.jpg?v=1775754993&width=1500",
-  },
-  {
-    id: "col3",
-    name: "Collection 3",
-    href: "/collections/collection-3",
-    src: "https://co.silviatcherassi.com/cdn/shop/files/SPRING_2026_-_HERO_IMAGES_13_b2600db3-62f4-4632-b8e2-b433de7b77ee.jpg?v=1775489708&width=1500",
-  },
-  {
-    id: "col4",
-    name: "Collection 4",
-    href: "/collections/collection-4",
-    src: "https://co.silviatcherassi.com/cdn/shop/files/SPRING_2026_-_HERO_IMAGES_19_e3e6e248-ee80-432f-a4be-114ceebf414b.jpg?v=1775489710&width=832",
-  },
-];
-// ----- Load persisted data from localStorage (for dynamic updates) -----
-const loadData = () => {
-  if (typeof window === "undefined")
-    return { products: defaultProducts, collections: defaultCollections };
-  const storedProducts = localStorage.getItem("inventory_products");
-  const storedCollections = localStorage.getItem("inventory_collections");
-  return {
-    products: storedProducts ? JSON.parse(storedProducts) : defaultProducts,
-    collections: storedCollections
-      ? JSON.parse(storedCollections)
-      : defaultCollections,
-  };
-};
-const { products: initialProducts, collections: initialCollections } =
-  loadData();
-// ----- Valtio proxy state -----
-const store = proxy({
-  products: initialProducts,
-  collections: initialCollections,
-});
-// ----- Persist helper (saves to localStorage after each mutation) -----
-const persist = () => {
-  if (typeof window !== "undefined") {
-    localStorage.setItem("inventory_products", JSON.stringify(store.products));
-    localStorage.setItem(
-      "inventory_collections",
-      JSON.stringify(store.collections),
-    );
-  }
-};
-// ----- Actions (mutate the proxy directly) -----
-export const inventoryActions = {
-  addProduct(product) {
-    store.products.push(product);
-    persist();
-  },
-  updateProduct(id, updates) {
-    const product = store.products.find((p) => p.id === id);
-    if (product) Object.assign(product, updates);
-    persist();
-  },
-  deleteProduct(id) {
-    const index = store.products.findIndex((p) => p.id === id);
-    if (index !== -1) store.products.splice(index, 1);
-    persist();
-  },
-  assignCollection(productId, collectionId) {
-    const product = store.products.find((p) => p.id === productId);
-    if (product) product.collectionId = collectionId || null;
-    persist();
-  },
-  addCollection(collection) {
-    store.collections.push(collection);
-    persist();
-  },
-  updateCollection(id, updates) {
-    const collection = store.collections.find((c) => c.id === id);
-    if (collection) Object.assign(collection, updates);
-    persist();
-  },
-  deleteCollection(id) {
-    // Remove reference from all products
-    store.products.forEach((p) => {
-      if (p.collectionId === id) p.collectionId = null;
-    });
-    const index = store.collections.findIndex((c) => c.id === id);
-    if (index !== -1) store.collections.splice(index, 1);
-    persist();
-  },
-};
-// ----- Helper to get a single product (reactive if used inside useSnapshot) -----
-export const getItemById = (id) =>
-  store.products.find((p) => p.id === id) ?? null;
-// ----- Custom hook for React components -----
-export function useInventory() {
-  const snap = useSnapshot(store);
-  return {
-    products: snap.products,
-    collections: snap.collections,
-    ...inventoryActions,
-    getItemById: (id) => snap.products.find((p) => p.id === id) ?? null,
-  };
-}
 //===== vStore/cartStore.js =====
 "use client";
 import { proxy, useSnapshot } from "valtio";
-// ----- Load cart & migrate old 'id' to '_id' -----
 const loadCart = () => {
   if (typeof window === "undefined") return { items: [] };
   const stored = localStorage.getItem("cart_items");
   if (stored) {
     try {
       const parsed = JSON.parse(stored);
-      // migrate: copy old id → _id if missing
       return {
         items: parsed.map((item) => ({
           ...item,
-          _id: item._id || item.id, // fallback to old id
+          handle: item.handle,
         })),
       };
     } catch {
@@ -2557,13 +2809,13 @@ const persistCart = () => {
 export const cartActions = {
   addItem(product, variant, qty = 1) {
     const existing = cartState.items.find(
-      (i) => i._id === product._id && i.variant === variant,
+      (i) => i.handle === product.handle && i.variant === variant,
     );
     if (existing) {
       existing.qty += qty;
     } else {
       cartState.items.push({
-        _id: product._id, // store only _id
+        handle: product.handle, // store only the handle
         variant: variant || null,
         price: product.price,
         qty,
@@ -2571,19 +2823,19 @@ export const cartActions = {
     }
     persistCart();
   },
-  updateQty(_id, variant, newQty) {
+  updateQty(handle, variant, newQty) {
     if (newQty < 1) return;
     const item = cartState.items.find(
-      (i) => i._id === _id && i.variant === variant,
+      (i) => i.handle === handle && i.variant === variant,
     );
     if (item) {
       item.qty = newQty;
       persistCart();
     }
   },
-  removeItem(_id, variant) {
+  removeItem(handle, variant) {
     const index = cartState.items.findIndex(
-      (i) => i._id === _id && i.variant === variant,
+      (i) => i.handle === handle && i.variant === variant,
     );
     if (index !== -1) {
       cartState.items.splice(index, 1);
@@ -2697,6 +2949,8 @@ export const assignCollection = (productId, collectionId) =>
 // Synchronous helpers
 export const getAsset = (section, _id) =>
   state[section]?.find((asset) => asset._id == _id) ?? null;
+export const getAssetByHandle = (section, handle) =>
+  state[section]?.find((asset) => asset.handle === handle) ?? null;
 // React hook – SSR safe
 export const useAssets = () =>
   typeof window === "object" ? useSnapshot(state) : snapshot(state);
